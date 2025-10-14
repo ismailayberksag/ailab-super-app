@@ -28,6 +28,7 @@ namespace ailab_super_app.Data
         public DbSet<AnnouncementProject> AnnouncementProjects { get; set; }
         public DbSet<AnnouncementUser> AnnouncementUsers { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
+        public DbSet<RefreshToken> RefreshTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder b)
         {
@@ -410,6 +411,29 @@ namespace ailab_super_app.Data
 
                 e.HasOne(x => x.User)
                  .WithMany(u => u.AnnouncementUsers)
+                 .HasForeignKey(x => x.UserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Refresh Token Konfigürasyonu
+            b.Entity<RefreshToken>(e =>
+            {
+                e.ToTable("refresh_tokens");
+                e.HasKey(x => x.Id);
+
+                e.Property(x => x.Token).IsRequired().HasMaxLength(500);
+                e.Property(x => x.CreatedByIp).IsRequired().HasMaxLength(50);
+                e.Property(x => x.RevokedByIp).HasMaxLength(50);
+                e.Property(x => x.ReplacedByToken).HasMaxLength(500);
+
+                // Index'ler - performans için
+                e.HasIndex(x => x.Token).IsUnique();
+                e.HasIndex(x => new { x.UserId, x.ExpiresAt });
+                e.HasIndex(x => x.ExpiresAt);
+
+                // Foreign key - User ile ilişki
+                e.HasOne(x => x.User)
+                 .WithMany()
                  .HasForeignKey(x => x.UserId)
                  .OnDelete(DeleteBehavior.Cascade);
             });
