@@ -88,7 +88,7 @@ namespace ailab_super_app
             {
                 options.AddPolicy("AllowAll", policy =>
                 {
-                    policy.WithOrigins("http://localhost:3000", "https://yourdomain.com")  // Sadece belirli domainler
+                    policy.WithOrigins("http://localhost:3000", "https://localhost:7258", "http://localhost:7258", "https://yourdomain.com")  // Sadece belirli domainler
                           .AllowAnyMethod()
                           .AllowAnyHeader()
                           .AllowCredentials();
