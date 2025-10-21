@@ -20,6 +20,10 @@ public class User : IdentityUser<Guid>
 
     public string? AvatarUrl { get; set; }
 
+    // Yeni: Okul numarası
+    [MaxLength(50)]
+    public string? SchoolNumber { get; set; }
+
     public UserStatus Status { get; set; } = UserStatus.Active;
 
     public int TotalScore { get; set; } = 0;

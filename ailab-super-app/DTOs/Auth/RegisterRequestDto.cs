@@ -13,6 +13,10 @@ namespace ailab_super_app.DTOs.Auth
         [MaxLength(50, ErrorMessage = "Kullanıcı adı en fazla 50 karakter olabilir!")]
         public string UserName { get; set; } = default!;
 
+        // Yeni: SchoolNumber (opsiyonel tutuluyor; isterseniz Required yapabilirsiniz)
+        [MaxLength(50)]
+        public string? SchoolNumber { get; set; }
+
         [Required(ErrorMessage = "Şifre gereklidir!")]
         [MinLength(8, ErrorMessage = "Şifre en az 8 karakter olmalıdır!")]
         public string Password { get; set; } = default!;

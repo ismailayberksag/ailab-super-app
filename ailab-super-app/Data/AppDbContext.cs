@@ -52,6 +52,10 @@ namespace ailab_super_app.Data
                 e.Property(x => x.FullName).HasMaxLength(200);
                 e.Property(x => x.Phone).HasMaxLength(20);
                 e.Property(x => x.AvatarUrl).HasMaxLength(500);
+
+                // Yeni: SchoolNumber konfigurasyonu ve benzersiz index
+                e.Property(x => x.SchoolNumber).HasMaxLength(50);
+                e.HasIndex(x => x.SchoolNumber).IsUnique();
             });
 
             // AppRole konfigürasyonu

@@ -48,6 +48,8 @@ namespace ailab_super_app.Services
                 Email = request.Email,
                 FullName = request.FullName,
                 Phone = request.PhoneNumber,
+                PhoneNumber = request.PhoneNumber, // Identity alanını da doldur (senkronize)
+                SchoolNumber = request.SchoolNumber,// yeni alan
                 Status = UserStatus.Active,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
