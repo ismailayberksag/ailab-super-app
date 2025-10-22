@@ -40,6 +40,9 @@ appsettings.Production.json
 # Connection strings (GÜVENLİK!)
 **/appsettings.json
 
+# Environment variables (GÜVENLİK!)
+.env
+
 # Node modules
 node_modules/
 

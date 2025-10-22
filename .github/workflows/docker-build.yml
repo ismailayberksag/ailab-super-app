@@ -1,0 +1,55 @@
+name: Docker Build & Test
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ develop ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Create test .env file
+      run: |
+        cat > .env << EOF
+        POSTGRES_DB=test_db
+        POSTGRES_USER=test_user
+        POSTGRES_PASSWORD=test_password
+        POSTGRES_PORT=5432
+        ASPNETCORE_ENVIRONMENT=Development
+        API_PORT=6161
+        JWT_SECRET=test-jwt-secret-key-for-ci-cd-testing-purposes-only
+        JWT_ISSUER=https://test.ailab.org.tr
+        JWT_AUDIENCE=https://test.ailab.org.tr
+        JWT_ACCESS_TOKEN_EXPIRATION=60
+        JWT_REFRESH_TOKEN_EXPIRATION=7
+        EOF
+    
+    - name: Build Docker images
+      run: docker compose build
+    
+    - name: Start services
+      run: docker compose up -d
+    
+    - name: Wait for services to be healthy
+      run: |
+        timeout 60 bash -c 'until docker compose ps | grep "healthy"; do sleep 2; done'
+    
+    - name: Check API health
+      run: |
+        sleep 10
+        curl -f http://localhost:6161/swagger/index.html || exit 1
+    
+    - name: Show logs
+      if: always()
+      run: docker compose logs
+    
+    - name: Cleanup
+      if: always()
+      run: docker compose down -v
+

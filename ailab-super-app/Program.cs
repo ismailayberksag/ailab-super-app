@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.HttpOverrides;
 using System.Text;
 
 namespace ailab_super_app
@@ -19,10 +20,16 @@ namespace ailab_super_app
 
             // PostgreSQL DbContext
             builder.Services.AddDbContext<AppDbContext>(options =>
+            {
                 options.UseNpgsql(
                     builder.Configuration.GetConnectionString("DefaultConnection"),
                     npgsqlOptions => npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "app")
-                ));
+                );
+                // Pending model changes warning'ini suppress et (production için)
+                options.ConfigureWarnings(warnings =>
+                    warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)
+                );
+            });
 
             // Identity
             builder.Services.AddIdentity<User, AppRole>(options =>
@@ -73,6 +80,14 @@ namespace ailab_super_app
             // Authorization
             builder.Services.AddAuthorization();
 
+            // Forwarded Headers (reverse proxy için)
+            builder.Services.Configure<ForwardedHeadersOptions>(options =>
+            {
+                options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+                options.KnownNetworks.Clear();
+                options.KnownProxies.Clear();
+            });
+
             // Services
             builder.Services.AddScoped<IAuthService, AuthService>();
 
@@ -95,26 +110,49 @@ namespace ailab_super_app
                 });
             });
 
-            // Kestrel'i 0.0.0.0 üzerinden dinlemesi için yapılandır
+            // Kestrel'i 0.0.0.0 üzerinden dinlemesi için yapılandır (reverse proxy arkasında)
             builder.WebHost.ConfigureKestrel(options =>
             {
-                options.ListenAnyIP(5086); // HTTP
-                options.ListenAnyIP(7258, listenOptions =>
-                {
-                    listenOptions.UseHttps(); // HTTPS
-                });
+                options.ListenAnyIP(6161); // Sadece HTTP (CloudPanel/Nginx SSL sonlandırma yapacak)
             });
 
             var app = builder.Build();
 
+            // Database migration'ı otomatik çalıştır
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
+                
+                try
+                {
+                    logger.LogInformation("Veritabanı migration'ları kontrol ediliyor...");
+                    db.Database.Migrate();
+                    logger.LogInformation("Veritabanı hazır!");
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "Migration sırasında hata oluştu!");
+                    throw;
+                }
+            }
+
             // Middleware
+            app.UseForwardedHeaders(); // Reverse proxy için (X-Forwarded-For, X-Forwarded-Proto)
+
             if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
+            else
+            {
+                app.UseSwagger();
+                app.UseSwaggerUI();
+            }
 
-            app.UseHttpsRedirection();
+            // HTTPS redirection CloudPanel/Nginx tarafından yapılacak
+            // app.UseHttpsRedirection(); // Reverse proxy arkasında gereksiz
 
             app.UseCors("AllowAll");
 

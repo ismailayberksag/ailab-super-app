@@ -144,7 +144,7 @@ namespace ailab_super_app.Data
                 e.HasKey(x => x.UserId);
                 e.Property(x => x.CardUid).HasMaxLength(50);
 
-                e.HasOne<User>()
+                e.HasOne(x => x.User)
                  .WithMany()
                  .HasForeignKey(x => x.UserId)
                  .OnDelete(DeleteBehavior.Cascade);

@@ -1,0 +1,58 @@
+services:
+  postgres:
+    image: postgres:18-alpine
+    container_name: ailab-postgres
+    restart: unless-stopped
+    user: postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ailab_db}
+      POSTGRES_USER: ${POSTGRES_USER:-ailab_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ailab_user}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ailab-network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ailab-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://+:6161
+      ConnectionStrings__DefaultConnection: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-ailab_db};Username=${POSTGRES_USER:-ailab_user};Password=${POSTGRES_PASSWORD}"
+      JwtSettings__Secret: ${JWT_SECRET}
+      JwtSettings__Issuer: ${JWT_ISSUER:-https://api.ailab.org.tr}
+      JwtSettings__Audience: ${JWT_AUDIENCE:-https://api.ailab.org.tr}
+      JwtSettings__AccessTokenExpirationMinutes: ${JWT_ACCESS_TOKEN_EXPIRATION:-60}
+      JwtSettings__RefreshTokenExpirationDays: ${JWT_REFRESH_TOKEN_EXPIRATION:-7}
+    ports:
+      - "${API_PORT:-6161}:6161"
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:6161/swagger/index.html || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - ailab-network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  ailab-network:
+    driver: bridge
