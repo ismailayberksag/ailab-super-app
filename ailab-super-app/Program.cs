@@ -123,7 +123,7 @@ namespace ailab_super_app
 
             app.MapControllers();
 
-            app.Run("http://0.0.0.0:5086", "https://0.0.0.0:7258");
+            app.Run();
         }
     }
 }
