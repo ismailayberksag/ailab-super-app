@@ -41,7 +41,7 @@ services:
     ports:
       - "${API_PORT:-6161}:6161"
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:6161/swagger/index.html || exit 1"]
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://localhost:6161/swagger/index.html || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
