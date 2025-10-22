@@ -95,6 +95,16 @@ namespace ailab_super_app
                 });
             });
 
+            // Kestrel'i 0.0.0.0 üzerinden dinlemesi için yapılandır
+            builder.WebHost.ConfigureKestrel(options =>
+            {
+                options.ListenAnyIP(5086); // HTTP
+                options.ListenAnyIP(7258, listenOptions =>
+                {
+                    listenOptions.UseHttps(); // HTTPS
+                });
+            });
+
             var app = builder.Build();
 
             // Middleware
@@ -113,7 +123,7 @@ namespace ailab_super_app
 
             app.MapControllers();
 
-            app.Run();
+            app.Run("http://0.0.0.0:5086", "https://0.0.0.0:7258");
         }
     }
 }
