@@ -91,6 +91,8 @@ namespace ailab_super_app
 
             // Services
             builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<IUserService, UserService>();
+            builder.Services.AddScoped<IRoleService, RoleService>();
 
             // Controllers
             builder.Services.AddControllers();
