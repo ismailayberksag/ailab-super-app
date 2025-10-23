@@ -1,6 +1,10 @@
-﻿namespace ailab_super_app.DTOs.User
+﻿using System.ComponentModel.DataAnnotations;
+using ailab_super_app.Models;
+
+namespace ailab_super_app.DTOs.User;
+
+public class UpdateUserStatusDto
 {
-    public class UpdatedUserStatusDto
-    {
-    }
+    [Required(ErrorMessage = "Kullanıcı durumu gereklidir")]
+    public UserStatus Status { get; set; }
 }
