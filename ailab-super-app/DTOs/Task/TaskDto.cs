@@ -1,4 +1,4 @@
-using ailab_super_app.Models.Enums;
+using TaskStatus = ailab_super_app.Models.Enums.TaskStatus;
 
 namespace ailab_super_app.DTOs.Task;
 
