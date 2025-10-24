@@ -171,5 +171,28 @@ namespace ailab_super_app.Services
                 throw new Exception($"Kullanıcı silinemedi: {errors}");
             }
         }
+
+        public async Task<UserDto> UpdateAvatarAsync(Guid userId, string avatarFileName)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+
+            if (user == null || user.IsDeleted)
+            {
+                throw new Exception("Kullanıcı bulunamadı");
+            }
+
+            user.AvatarUrl = avatarFileName;
+            user.UpdatedAt = DateTime.UtcNow;
+
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                throw new Exception($"Avatar güncellenemedi: {errors}");
+            }
+
+            return await GetUserByIdAsync(userId);
+        }
     }
 }

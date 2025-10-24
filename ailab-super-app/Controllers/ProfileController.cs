@@ -67,5 +67,29 @@ public class ProfileController : ControllerBase
             return BadRequest(new { message = ex.Message });
         }
     }
+
+    /// <summary>
+    /// Update current user's avatar (Any authenticated user)
+    /// </summary>
+    [HttpPut("avatar")]
+    public async Task<ActionResult<UserDto>> UpdateMyAvatar([FromBody] UpdateAvatarDto dto)
+    {
+        try
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var currentUserId))
+            {
+                return Unauthorized(new { message = "Kullanıcı kimliği doğrulanamadı" });
+            }
+
+            var user = await _userService.UpdateAvatarAsync(currentUserId, dto.AvatarFileName);
+            return Ok(user);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Update avatar hatası: {ex.Message}");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 }
 

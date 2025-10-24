@@ -10,5 +10,6 @@ namespace ailab_super_app.Services.Interfaces
         Task<UserDto> UpdateUserAsync(Guid userId, UpdateUserDto dto);
         Task<UserDto> UpdateUserStatusAsync(Guid userId, UpdateUserStatusDto dto);
         Task DeleteUserAsync(Guid userId, Guid deletedBy);
+        Task<UserDto> UpdateAvatarAsync(Guid userId, string avatarFileName);
     }
 }

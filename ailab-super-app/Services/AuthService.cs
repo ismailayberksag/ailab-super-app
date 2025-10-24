@@ -50,6 +50,7 @@ namespace ailab_super_app.Services
                 Phone = request.PhoneNumber,
                 PhoneNumber = request.PhoneNumber, // Identity alanını da doldur (senkronize)
                 SchoolNumber = request.SchoolNumber,// yeni alan
+                AvatarUrl = "default.png", // Default avatar for new users
                 Status = UserStatus.Active,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
