@@ -30,6 +30,7 @@ namespace ailab_super_app.Data
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<RfidReader> RfidReaders { get; set; }
+        public DbSet<DoorState> DoorStates { get; set; }
 
         protected override void OnModelCreating(ModelBuilder b)
         {
@@ -456,6 +457,23 @@ namespace ailab_super_app.Data
                 
                 e.HasIndex(x => x.ReaderUid).IsUnique();
                 e.HasIndex(x => new { x.RoomId, x.Location });
+                
+                e.HasOne(x => x.Room)
+                 .WithMany()
+                 .HasForeignKey(x => x.RoomId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Door State Konfigürasyonu
+            b.Entity<DoorState>(e =>
+            {
+                e.ToTable("door_states");
+                e.HasKey(x => x.Id);
+                
+                e.Property(x => x.IsOpen).IsRequired();
+                e.Property(x => x.LastUpdatedAt).IsRequired();
+                
+                e.HasIndex(x => x.RoomId).IsUnique();
                 
                 e.HasOne(x => x.Room)
                  .WithMany()
