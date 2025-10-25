@@ -29,14 +29,15 @@ FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS final
 WORKDIR /app
 EXPOSE 6161
 
+# Migration script'ini runtime'a kopyala ve çalıştırılabilir yap
+COPY --from=build /src/ailab-super-app/auto-migration.sh ./auto-migration.sh
+RUN chmod +x ./auto-migration.sh
+
 # Non-root user oluştur (güvenlik için)
 RUN addgroup -g 1000 appuser && adduser -u 1000 -G appuser -s /bin/sh -D appuser
 USER appuser
 
 COPY --from=publish /app/publish .
-# Migration script'ini runtime'a kopyala
-COPY --from=build /src/ailab-super-app/auto-migration.sh ./auto-migration.sh
-RUN chmod +x ./auto-migration.sh
 
 ENTRYPOINT ["dotnet", "ailab-super-app.dll"]
 
