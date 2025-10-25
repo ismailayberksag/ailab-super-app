@@ -15,10 +15,10 @@ COPY . .
 WORKDIR "/src/ailab-super-app"
 
 # Migration script'ini çalıştırılabilir yap
-RUN chmod +x ../scripts/auto-migration.sh
+RUN chmod +x /src/scripts/auto-migration.sh
 
 # Build öncesi migration kontrolü
-RUN ../scripts/auto-migration.sh
+RUN /src/scripts/auto-migration.sh
 
 RUN dotnet build "ailab-super-app.csproj" -c Release -o /app/build
 
