@@ -2,6 +2,10 @@
 FROM mcr.microsoft.com/dotnet/sdk:8.0-alpine AS build
 WORKDIR /src
 
+# EF CLI'yi yükle
+RUN dotnet tool install --global dotnet-ef --version 8.0.0
+ENV PATH="${PATH}:/root/.dotnet/tools"
+
 # Proje dosyasını kopyala ve restore et
 COPY ["ailab-super-app/ailab-super-app.csproj", "ailab-super-app/"]
 RUN dotnet restore "ailab-super-app/ailab-super-app.csproj"
@@ -9,6 +13,13 @@ RUN dotnet restore "ailab-super-app/ailab-super-app.csproj"
 # Tüm kaynak kodları kopyala
 COPY . .
 WORKDIR "/src/ailab-super-app"
+
+# Migration script'ini çalıştırılabilir yap
+RUN chmod +x ../scripts/auto-migration.sh
+
+# Build öncesi migration kontrolü
+RUN ../scripts/auto-migration.sh
+
 RUN dotnet build "ailab-super-app.csproj" -c Release -o /app/build
 
 # Publish Stage
