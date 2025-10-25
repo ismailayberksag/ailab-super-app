@@ -15,7 +15,7 @@ COPY . .
 WORKDIR "/src/ailab-super-app"
 
 # Migration script'ini proje dizinine kopyala ve çalıştır
-RUN cp ../scripts/auto-migration.sh ./auto-migration.sh && \
+RUN cp /src/scripts/auto-migration.sh ./auto-migration.sh && \
     chmod +x ./auto-migration.sh && \
     ./auto-migration.sh
 
