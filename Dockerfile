@@ -14,11 +14,10 @@ RUN dotnet restore "ailab-super-app/ailab-super-app.csproj"
 COPY . .
 WORKDIR "/src/ailab-super-app"
 
-# Migration script'ini çalıştırılabilir yap
-RUN chmod +x /src/scripts/auto-migration.sh
-
-# Build öncesi migration kontrolü
-RUN /src/scripts/auto-migration.sh
+# Migration script'ini proje dizinine kopyala ve çalıştır
+RUN cp /src/scripts/auto-migration.sh ./auto-migration.sh && \
+    chmod +x ./auto-migration.sh && \
+    ./auto-migration.sh
 
 RUN dotnet build "ailab-super-app.csproj" -c Release -o /app/build
 
