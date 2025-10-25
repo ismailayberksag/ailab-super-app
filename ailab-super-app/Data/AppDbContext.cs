@@ -29,6 +29,7 @@ namespace ailab_super_app.Data
         public DbSet<AnnouncementUser> AnnouncementUsers { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
+        public DbSet<RfidReader> RfidReaders { get; set; }
 
         protected override void OnModelCreating(ModelBuilder b)
         {
@@ -439,6 +440,26 @@ namespace ailab_super_app.Data
                 e.HasOne(x => x.User)
                  .WithMany()
                  .HasForeignKey(x => x.UserId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // RFID Reader Konfigürasyonu
+            b.Entity<RfidReader>(e =>
+            {
+                e.ToTable("rfid_readers");
+                e.HasKey(x => x.Id);
+                
+                e.Property(x => x.ReaderUid).IsRequired().HasMaxLength(100);
+                e.Property(x => x.Name).IsRequired().HasMaxLength(50);
+                e.Property(x => x.Description).HasMaxLength(500);
+                e.Property(x => x.Location).HasConversion<string>();
+                
+                e.HasIndex(x => x.ReaderUid).IsUnique();
+                e.HasIndex(x => new { x.RoomId, x.Location });
+                
+                e.HasOne(x => x.Room)
+                 .WithMany()
+                 .HasForeignKey(x => x.RoomId)
                  .OnDelete(DeleteBehavior.Cascade);
             });
 

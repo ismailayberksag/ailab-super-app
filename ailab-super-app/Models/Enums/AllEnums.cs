@@ -35,3 +35,9 @@ public enum UserStatus
     Inactive,
     Suspended
 }
+
+public enum ReaderLocation
+{
+    Inside,   
+    Outside   
+}
