@@ -30,6 +30,7 @@ namespace ailab_super_app.Data
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<RfidReader> RfidReaders { get; set; }
+        public DbSet<TestModel> TestModels { get; set; }
 
         protected override void OnModelCreating(ModelBuilder b)
         {
