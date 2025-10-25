@@ -132,7 +132,21 @@ namespace ailab_super_app
                 try
                 {
                     logger.LogInformation("Veritabanı migration'ları kontrol ediliyor...");
-                    db.Database.Migrate();
+                    
+                    // Pending migration'ları kontrol et
+                    var pendingMigrations = db.Database.GetPendingMigrations().ToList();
+                    if (pendingMigrations.Any())
+                    {
+                        logger.LogInformation($"Bekleyen migration'lar bulundu: {string.Join(", ", pendingMigrations)}");
+                        logger.LogInformation("Migration'lar uygulanıyor...");
+                        db.Database.Migrate();
+                        logger.LogInformation("Migration'lar başarıyla uygulandı!");
+                    }
+                    else
+                    {
+                        logger.LogInformation("Bekleyen migration bulunamadı, veritabanı güncel.");
+                    }
+                    
                     logger.LogInformation("Veritabanı hazır!");
                 }
                 catch (Exception ex)
