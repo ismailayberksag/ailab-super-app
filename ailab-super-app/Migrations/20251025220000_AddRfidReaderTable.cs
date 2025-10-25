@@ -31,7 +31,7 @@ namespace ailab_super_app.Migrations
                         name: "FK_RfidReaders_Rooms_RoomId",
                         column: x => x.RoomId,
                         principalSchema: "app",
-                        principalTable: "Rooms",
+                        principalTable: "rooms",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 });
