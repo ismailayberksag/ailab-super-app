@@ -15,8 +15,8 @@ if [ "$PENDING_MIGRATIONS" -eq 0 ]; then
     PENDING_COUNT=$(dotnet ef migrations list 2>/dev/null | grep -c "Pending" || echo "0")
     
     if [ "$PENDING_COUNT" -gt 0 ]; then
-        echo "🔄 Bekleyen migration'lar bulundu, uygulanıyor..."
-        dotnet ef database update     else
+        echo "ℹ️  Bekleyen migration'lar bulundu, runtime'da uygulanacak"
+    else
         echo "✅ Veritabanı güncel, migration gerekmiyor."
     fi
 else
@@ -29,16 +29,7 @@ else
     dotnet ef migrations add "$MIGRATION_NAME"     
     if [ $? -eq 0 ]; then
         echo "✅ Migration başarıyla oluşturuldu: $MIGRATION_NAME"
-        
-        # Migration'ı uygula
-        echo "🔄 Migration uygulanıyor..."
-        dotnet ef database update         
-        if [ $? -eq 0 ]; then
-            echo "✅ Migration başarıyla uygulandı!"
-        else
-            echo "❌ Migration uygulanırken hata oluştu!"
-            exit 1
-        fi
+        echo "ℹ️  Migration runtime'da uygulanacak (Program.cs'de db.Database.Migrate())"
     else
         echo "❌ Migration oluşturulurken hata oluştu!"
         exit 1

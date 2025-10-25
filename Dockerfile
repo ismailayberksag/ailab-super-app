@@ -14,9 +14,10 @@ RUN dotnet restore "ailab-super-app/ailab-super-app.csproj"
 COPY . .
 WORKDIR "/src/ailab-super-app"
 
-# Migration script'ini proje dizinine kopyala (runtime'da çalıştırılacak)
+# Migration script'ini proje dizinine kopyala ve çalıştır
 RUN cp /src/scripts/auto-migration.sh ./auto-migration.sh && \
-    chmod +x ./auto-migration.sh
+    chmod +x ./auto-migration.sh && \
+    ./auto-migration.sh
 
 RUN dotnet build "ailab-super-app.csproj" -c Release -o /app/build
 
@@ -28,10 +29,6 @@ RUN dotnet publish "ailab-super-app.csproj" -c Release -o /app/publish /p:UseApp
 FROM mcr.microsoft.com/dotnet/aspnet:8.0-alpine AS final
 WORKDIR /app
 EXPOSE 6161
-
-# Migration script'ini runtime'a kopyala ve çalıştırılabilir yap
-COPY --from=build /src/ailab-super-app/auto-migration.sh ./auto-migration.sh
-RUN chmod +x ./auto-migration.sh
 
 # Non-root user oluştur (güvenlik için)
 RUN addgroup -g 1000 appuser && adduser -u 1000 -G appuser -s /bin/sh -D appuser
