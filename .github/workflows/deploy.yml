@@ -46,5 +46,7 @@ jobs:
           git pull origin main
           docker compose down
           docker compose up -d --build
+          # Migration script'ini çalıştır
+          docker compose exec -T api sh ./auto-migration.sh
           docker compose logs --tail=100 api
 
