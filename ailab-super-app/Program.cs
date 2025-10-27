@@ -109,7 +109,12 @@ namespace ailab_super_app
             {
                 options.AddPolicy("AllowAll", policy =>
                 {
-                    policy.WithOrigins("http://localhost:3003", "https://localhost:7258", "http://localhost:7258", "https://api.ailab.org.tr")  // Sadece belirli domainler
+                    policy.WithOrigins(
+                        "http://localhost:5173",
+                        "http://localhost:3003",
+                        "https://localhost:7258",
+                        "http://localhost:7258",
+                        "https://api.ailab.org.tr")  // Sadece belirli domainler
                           .AllowAnyMethod()
                           .AllowAnyHeader()
                           .AllowCredentials();
