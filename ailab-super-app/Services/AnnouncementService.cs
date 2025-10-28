@@ -97,7 +97,7 @@ namespace ailab_super_app.Services
                 // Captain için seçilen projeler sadece kontrol amaçlı kullanıldı; DB'ye ayrıca yazılmasına gerek yok
                 if (isAdmin == false && dto.TargetProjectIds != null && dto.TargetProjectIds.Count > 0)
                 {
-                    // İsteğe göre: Bireysel duyuruda da projeleri ilişkilendirmek istenirse aşağıyı açabilirsiniz.
+                    // İsteğe göre: Bireysel duyuruda da projeleri ilişkilendirmek istenirse
                     // entity.TargetProjects = dto.TargetProjectIds.Distinct().Select(pid => new AnnouncementProject
                     // {
                     //     AnnouncementId = entity.Id,
