@@ -4,25 +4,53 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using ailab_super_app.Models.Enums;
 
-namespace ailab_super_app.DTOs.Announcement
+namespace ailab_super_app.DTOs.Announcement;
+
+public class CreateAnnouncementDto : IValidatableObject
 {
-    public class CreateAnnouncementDto
+    [Required]
+    [MaxLength(200)]
+    public string Title { get; set; } = default!;
+
+    [Required]
+    public string Content { get; set; } = default!;
+
+    [Required]
+    public AnnouncementScope Scope { get; set; }
+
+    // Project ve Individual scope'larında kullanılabilir
+    public List<Guid>? TargetProjectIds { get; set; }
+
+    // Individual scope'unda kullanılabilir
+    public List<Guid>? TargetUserIds { get; set; }
+
+    public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        [Required(ErrorMessage = "Başlık gereklidir")]
-        [MaxLength(200, ErrorMessage = "Başlık maksimum 200 karakter olabilir")]
-        public string Title { get; set; } = default!;
+        if (Scope == AnnouncementScope.Project &&
+            (TargetProjectIds == null || !TargetProjectIds.Any()))
+        {
+            yield return new ValidationResult(
+                "Proje duyurusu için en az bir proje seçilmelidir",
+                new[] { nameof(TargetProjectIds) }
+            );
+        }
 
-        [Required(ErrorMessage = "İçerik gereklidir")]
-        [MaxLength(1000, ErrorMessage = "İçerik maksimum 1000 karakter olabilir")]
-        public string Content { get; set; } = default!;
+        if (Scope == AnnouncementScope.Individual &&
+            (TargetUserIds == null || !TargetUserIds.Any()))
+        {
+            yield return new ValidationResult(
+                "Bireysel duyuru için en az bir kullanıcı seçilmelidir",
+                new[] { nameof(TargetUserIds) }
+            );
+        }
 
-        [Required]
-        public AnnouncementScope Scope { get; set; }
-
-        // Project ve Individual scope'larında kullanılabilir
-        public List<Guid>? TargetProjectIds { get; set; }
-
-        // Individual scope'unda kullanılabilir
-        public List<Guid>? TargetUserIds { get; set; }
+        if (Scope == AnnouncementScope.Global &&
+            ((TargetProjectIds?.Any() ?? false) || (TargetUserIds?.Any() ?? false)))
+        {
+            yield return new ValidationResult(
+                "Global duyuruda hedef proje veya kullanıcı belirtilemez",
+                new[] { nameof(Scope) }
+            );
+        }
     }
 }
