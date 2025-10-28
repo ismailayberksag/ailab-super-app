@@ -6,13 +6,13 @@
 echo "🔍 Model değişiklikleri kontrol ediliyor..."
 
 # Migration'ları kontrol et
-PENDING_MIGRATIONS=$(dotnet ef migrations list 2>/dev/null | grep -c "No migrations found" || echo "0")
+PENDING_MIGRATIONS=$(dotnet ef migrations list 2>/dev/null | grep -c "No migrations found" || true)
 
 if [ "$PENDING_MIGRATIONS" -eq 0 ]; then
     echo "✅ Mevcut migration'lar var, kontrol ediliyor..."
     
     # Pending migration'ları kontrol et
-    PENDING_COUNT=$(dotnet ef migrations list 2>/dev/null | grep -c "Pending" || echo "0")
+    PENDING_COUNT=$(dotnet ef migrations list 2>/dev/null | grep -c "Pending" || true)
     
     if [ "$PENDING_COUNT" -gt 0 ]; then
         echo "ℹ️  Bekleyen migration'lar bulundu, runtime'da uygulanacak"
