@@ -96,6 +96,7 @@ namespace ailab_super_app
             builder.Services.AddScoped<IProjectService, ProjectService>();
             builder.Services.AddScoped<ITaskService, TaskService>();
             builder.Services.AddScoped<IRoomAccessService, RoomAccessService>();
+            builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
 
             // Controllers
             builder.Services.AddControllers();
