@@ -64,6 +64,14 @@ namespace ailab_super_app.Services
                 throw new Exception($"Kullanıcı oluşturulamadı: {errors}");
             }
 
+            // Varsayılan rol ata: Member
+            var roleAssignResult = await _userManager.AddToRoleAsync(user, "Member");
+            if (!roleAssignResult.Succeeded)
+            {
+                var errors = string.Join(", ", roleAssignResult.Errors.Select(e => e.Description));
+                throw new Exception($"Varsayılan rol atanamadı (Member): {errors}");
+            }
+
             //login response dön
             return await GenerateLoginResponse(user, ipAddress);
         }
