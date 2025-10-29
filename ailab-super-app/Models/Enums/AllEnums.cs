@@ -41,3 +41,12 @@ public enum ReaderLocation
     Inside,   
     Outside   
 }
+
+public enum ReportRequestStatus
+{
+    Pending,        // Talep açıldı, henüz yükleme yok
+    Submitted,      // En az bir PDF yüklendi
+    UnderReview,    // Talep sahibi görüntüledi/inceleme aşamasında
+    Approved,       // Onaylandı
+    Rejected        // Reddedildi
+}

@@ -157,18 +157,45 @@ namespace ailab_super_app.Data
             {
                 e.ToTable("report_requests");
                 e.HasKey(x => x.Id);
+
                 e.Property(x => x.Title).IsRequired().HasMaxLength(200);
                 e.Property(x => x.PeriodType).HasMaxLength(20);
 
+                //durum sütunu (int formatında)
+                e.Property(x => x.Status).IsRequired();
+
+                //ProjectId nullable ve SetNull
                 e.HasOne(x => x.Project)
                  .WithMany()
                  .HasForeignKey(x => x.ProjectId)
-                 .OnDelete(DeleteBehavior.Cascade);
+                 .OnDelete(DeleteBehavior.SetNull); //İlişki kopsa da kayıtlar kalsın
 
-                e.HasOne<User>()
+                //RequestedBy asla null değil ve Restrict(kısıtlanmış yani kullanıcı silinse de talep kalır, ama bu FK engeller
+                //bu yüzden kullanıcı silinemez veya önce talebi devredilmeli)
+                e.HasOne(x => x.RequestedByUser)
                  .WithMany()
                  .HasForeignKey(x => x.RequestedBy)
-                 .OnDelete(DeleteBehavior.SetNull);
+                 .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            //Report Request User M2M
+            //Aynı kullanıcı aynı talebe iki kez eklenemesin diye composite unique index
+            b.Entity<ReportRequestUser>(e =>
+            {
+                e.ToTable("report_request_users");
+                e.HasKey(x => x.Id);
+
+                e.HasOne(x => x.ReportRequest)
+                .WithMany(rr => rr.TargetUsers)
+                .HasForeignKey(x => x.ReportRequestId)
+                .OnDelete(DeleteBehavior.Cascade); // Talep silinirse linkler silinir
+
+                e.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade); // Kullanıcı silinirse link silinsin
+
+                e.HasIndex(x => new { x.ReportRequestId, x.UserId }).IsUnique();
             });
 
             // Score History
@@ -293,7 +320,7 @@ namespace ailab_super_app.Data
                  .OnDelete(DeleteBehavior.SetNull);
             });
 
-            // Reports (mevcut konfigürasyonu güncelle)
+            // Reports
             b.Entity<Report>(e =>
             {
                 e.ToTable("reports");
@@ -322,10 +349,10 @@ namespace ailab_super_app.Data
                  .HasForeignKey(x => x.ReviewedBy)
                  .OnDelete(DeleteBehavior.SetNull);
 
-                e.HasOne(x => x.Request)
-                 .WithMany()
-                 .HasForeignKey(x => x.RequestId)
-                 .OnDelete(DeleteBehavior.SetNull);
+                e.HasOne(x => x.ReportRequest)
+                .WithMany(rr => rr.SubmittedReports)
+                .HasForeignKey(x => x.RequestId)
+                .OnDelete(DeleteBehavior.SetNull);;
             });
 
             // Rooms (mevcut konfigürasyonu koru)
