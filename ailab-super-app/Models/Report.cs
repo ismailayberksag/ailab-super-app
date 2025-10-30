@@ -10,7 +10,7 @@ public class Report
     public string Title { get; set; } = default!;
     public string FilePath { get; set; } = default!;
 
-    public string? PeriodType { get; set; }
+    public PeriodType? PeriodType { get; set; }
     public DateTime? PeriodStart { get; set; }
     public DateTime? PeriodEnd { get; set; }
 

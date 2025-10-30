@@ -21,7 +21,7 @@ public class ReportRequest
     public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
     public DateTime? DueDate { get; set; }
 
-    public string? PeriodType { get; set; }
+    public PeriodType? PeriodType { get; set; }
     public DateTime? PeriodStart { get; set; }
     public DateTime? PeriodEnd { get; set; }
 

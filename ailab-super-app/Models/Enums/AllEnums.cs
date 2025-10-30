@@ -48,5 +48,15 @@ public enum ReportRequestStatus
     Submitted,      // En az bir PDF yüklendi
     UnderReview,    // Talep sahibi görüntüledi/inceleme aşamasında
     Approved,       // Onaylandı
-    Rejected        // Reddedildi
+    Rejected       // Reddedildi
+}
+
+public enum PeriodType
+{
+    Daily,
+    Weekly,
+    Monthly,
+    Quarterly,
+    Annual,
+    Custom
 }
