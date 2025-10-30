@@ -31,6 +31,7 @@ namespace ailab_super_app.Data
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<RfidReader> RfidReaders { get; set; }
         public DbSet<DoorState> DoorStates { get; set; }
+        public DbSet<ReportRequestUser> ReportRequestUsers { get; set; }
 
         protected override void OnModelCreating(ModelBuilder b)
         {
@@ -159,7 +160,7 @@ namespace ailab_super_app.Data
                 e.HasKey(x => x.Id);
 
                 e.Property(x => x.Title).IsRequired().HasMaxLength(200);
-                e.Property(x => x.PeriodType).HasMaxLength(20);
+                e.Property(x => x.PeriodType).HasConversion<string>().HasMaxLength(20);
 
                 //durum sütunu (int formatında)
                 e.Property(x => x.Status).IsRequired();
@@ -327,7 +328,7 @@ namespace ailab_super_app.Data
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Title).IsRequired().HasMaxLength(200);
                 e.Property(x => x.FilePath).IsRequired().HasMaxLength(500);
-                e.Property(x => x.PeriodType).HasMaxLength(20);
+                e.Property(x => x.PeriodType).HasConversion<string>().HasMaxLength(20);
                 e.Property(x => x.Status).HasConversion<string>();
                 e.Property(x => x.SubmittedAt).IsRequired();
 
@@ -352,7 +353,7 @@ namespace ailab_super_app.Data
                 e.HasOne(x => x.ReportRequest)
                 .WithMany(rr => rr.SubmittedReports)
                 .HasForeignKey(x => x.RequestId)
-                .OnDelete(DeleteBehavior.SetNull);;
+                .OnDelete(DeleteBehavior.SetNull);
             });
 
             // Rooms (mevcut konfigürasyonu koru)
