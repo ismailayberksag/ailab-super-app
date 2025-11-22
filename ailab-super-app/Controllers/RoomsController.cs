@@ -61,10 +61,10 @@ namespace ailab_super_app.Controllers
         }
 
         /// <summary>
-        /// Register RFID card for a user (admin only)
+        /// Register RFID card for a user
         /// </summary>
         [HttpPost("register-card")]
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         public async Task<ActionResult> RegisterCard([FromBody] RegisterCardRequestDto request)
         {
             try
