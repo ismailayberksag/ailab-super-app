@@ -21,7 +21,7 @@ public interface IRoomAccessService
     Task ResetDoorStatusAsync(Guid roomId);
     
     /// <summary>
-    /// Register RFID card for a user (admin only)
+    /// Register RFID card for a user
     /// </summary>
-    Task<RfidCard> RegisterCardAsync(RegisterCardRequestDto request, Guid registeredBy);
+    Task<RfidCard> RegisterCardAsync(RegisterCardRequestDto request, Guid? registeredBy);
 }

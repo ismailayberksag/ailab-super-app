@@ -218,7 +218,7 @@ public class RoomAccessService : IRoomAccessService
         await UpdateDoorStateAsync(roomId, false);
     }
 
-    public async Task<RfidCard> RegisterCardAsync(RegisterCardRequestDto request, Guid registeredBy)
+    public async Task<RfidCard> RegisterCardAsync(RegisterCardRequestDto request, Guid? registeredBy)
     {
         // Validate user exists
         var user = await _context.Users

@@ -64,16 +64,18 @@ namespace ailab_super_app.Controllers
         /// Register RFID card for a user
         /// </summary>
         [HttpPost("register-card")]
-        [Authorize]
         public async Task<ActionResult> RegisterCard([FromBody] RegisterCardRequestDto request)
         {
             try
             {
-                // Get current user's ID from JWT token
+                // Anonymous erişim - registeredBy null olabilir
+                Guid? registeredBy = null;
+                
+                // Eğer authenticated kullanıcı varsa onu kullan (opsiyonel)
                 var currentUserId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                if (string.IsNullOrEmpty(currentUserId) || !Guid.TryParse(currentUserId, out var registeredBy))
+                if (!string.IsNullOrEmpty(currentUserId) && Guid.TryParse(currentUserId, out var userId))
                 {
-                    return Unauthorized(new { message = "Kullanıcı kimliği doğrulanamadı" });
+                    registeredBy = userId;
                 }
 
                 var rfidCard = await _roomAccessService.RegisterCardAsync(request, registeredBy);
