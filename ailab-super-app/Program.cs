@@ -115,7 +115,8 @@ namespace ailab_super_app
                         "http://localhost:3003",
                         "https://localhost:7258",
                         "http://localhost:7258",
-                        "https://api.ailab.org.tr")  // Sadece belirli domainler
+                        "https://api.ailab.org.tr",
+                        "http://192.168.5.172:5000")  // ← Raspberry Pi)  // Sadece belirli domainler
                           .AllowAnyMethod()
                           .AllowAnyHeader()
                           .AllowCredentials();
