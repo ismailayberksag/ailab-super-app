@@ -157,9 +157,11 @@ public class RoomAccessService : IRoomAccessService
             // 10. Save all changes
             await _context.SaveChangesAsync();
 
-            // 11. IMPORTANT: If door was opened, immediately reset it back to false
+            // 11. IMPORTANT: Wait for ESP to poll and open door, then reset
             if (doorShouldOpen)
             {
+                // ESP'nin kapıyı açması için 2.5 saniye bekle
+                await Task.Delay(2500);
                 await UpdateDoorStateAsync(reader.RoomId, false);
             }
 
