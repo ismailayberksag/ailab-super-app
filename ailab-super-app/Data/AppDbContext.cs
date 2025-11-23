@@ -32,6 +32,7 @@ namespace ailab_super_app.Data
         public DbSet<RfidReader> RfidReaders { get; set; }
         public DbSet<DoorState> DoorStates { get; set; }
         public DbSet<ReportRequestUser> ReportRequestUsers { get; set; }
+        public DbSet<ButtonPressLog> ButtonPressLogs { get; set; }
 
         protected override void OnModelCreating(ModelBuilder b)
         {
@@ -108,6 +109,11 @@ namespace ailab_super_app.Data
                 e.Property(x => x.ButtonUid).IsRequired().HasMaxLength(100);
                 e.Property(x => x.AssignedAction).HasMaxLength(50);
                 e.HasIndex(x => x.ButtonUid).IsUnique();
+                
+                e.HasOne(x => x.Room)
+                 .WithMany()
+                 .HasForeignKey(x => x.RoomId)
+                 .OnDelete(DeleteBehavior.Cascade);
             });
 
             // Card Registration Pending
@@ -502,6 +508,31 @@ namespace ailab_super_app.Data
                 e.Property(x => x.LastUpdatedAt).IsRequired();
                 
                 e.HasIndex(x => x.RoomId).IsUnique();
+                
+                e.HasOne(x => x.Room)
+                 .WithMany()
+                 .HasForeignKey(x => x.RoomId)
+                 .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // Button Press Log Konfigürasyonu
+            b.Entity<ButtonPressLog>(e =>
+            {
+                e.ToTable("button_press_logs");
+                e.HasKey(x => x.Id);
+                
+                e.Property(x => x.ButtonUid).IsRequired().HasMaxLength(100);
+                e.Property(x => x.PressedAt).IsRequired();
+                e.Property(x => x.Success).IsRequired();
+                
+                e.HasIndex(x => x.ButtonId);
+                e.HasIndex(x => x.RoomId);
+                e.HasIndex(x => x.PressedAt);
+                
+                e.HasOne(x => x.Button)
+                 .WithMany()
+                 .HasForeignKey(x => x.ButtonId)
+                 .OnDelete(DeleteBehavior.Cascade);
                 
                 e.HasOne(x => x.Room)
                  .WithMany()
