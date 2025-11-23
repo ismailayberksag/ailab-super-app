@@ -9,3 +9,4 @@ public class ButtonPressRequestDto
     public string ButtonUid { get; set; } = string.Empty;
 }
 
+

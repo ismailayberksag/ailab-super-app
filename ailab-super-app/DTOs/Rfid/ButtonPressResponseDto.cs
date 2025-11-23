@@ -9,3 +9,4 @@ public class ButtonPressResponseDto
     public bool DoorShouldOpen { get; set; }
 }
 
+
