@@ -21,7 +21,12 @@ public interface IRoomAccessService
     Task ResetDoorStatusAsync(Guid roomId);
     
     /// <summary>
-    /// Register RFID card for a user
+    /// Register RFID card for a user (admin only)
     /// </summary>
-    Task<RfidCard> RegisterCardAsync(RegisterCardRequestDto request, Guid? registeredBy);
+    Task<RfidCard> RegisterCardAsync(RegisterCardRequestDto request, Guid registeredBy);
+    
+    /// <summary>
+    /// Process physical button press and open door (no entry/exit logging)
+    /// </summary>
+    Task<ButtonPressResponseDto> ProcessButtonPressAsync(ButtonPressRequestDto request);
 }
