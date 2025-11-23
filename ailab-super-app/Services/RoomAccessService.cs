@@ -218,7 +218,7 @@ public class RoomAccessService : IRoomAccessService
         await UpdateDoorStateAsync(roomId, false);
     }
 
-    public async Task<RfidCard> RegisterCardAsync(RegisterCardRequestDto request, Guid? registeredBy)
+    public async Task<RfidCard> RegisterCardAsync(RegisterCardRequestDto request, Guid registeredBy)
     {
         // Validate user exists
         var user = await _context.Users
@@ -263,6 +263,96 @@ public class RoomAccessService : IRoomAccessService
             _context.RfidCards.Add(newCard);
             await _context.SaveChangesAsync();
             return newCard;
+        }
+    }
+
+    public async Task<ButtonPressResponseDto> ProcessButtonPressAsync(ButtonPressRequestDto request)
+    {
+        try
+        {
+            // 1. Validate button exists and is active
+            var button = await _context.PhysicalButtons
+                .Include(b => b.Room)
+                .FirstOrDefaultAsync(b => b.ButtonUid == request.ButtonUid && b.IsActive);
+
+            if (button == null)
+            {
+                return new ButtonPressResponseDto
+                {
+                    Success = false,
+                    Message = "Geçersiz veya pasif buton",
+                    DoorShouldOpen = false
+                };
+            }
+
+            var roomId = button.RoomId;
+
+            // 2. Update DoorState.IsOpen to true (ESP will poll and open door)
+            await UpdateDoorStateAsync(roomId, true);
+
+            // 3. Create ButtonPressLog entry
+            var buttonPressLog = new ButtonPressLog
+            {
+                Id = Guid.NewGuid(),
+                ButtonId = button.Id,
+                RoomId = roomId,
+                ButtonUid = request.ButtonUid,
+                PressedAt = DateTime.UtcNow,
+                Success = true
+            };
+
+            _context.ButtonPressLogs.Add(buttonPressLog);
+
+            // 4. Save changes
+            await _context.SaveChangesAsync();
+
+            // 5. IMPORTANT: Immediately reset door state back to false (ESP will close door after opening)
+            await UpdateDoorStateAsync(roomId, false);
+
+            return new ButtonPressResponseDto
+            {
+                Success = true,
+                Message = "Kapı açma komutu gönderildi",
+                DoorShouldOpen = true
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Button press processing error: {Message}", ex.Message);
+            
+            // Try to log the error if button exists
+            try
+            {
+                var button = await _context.PhysicalButtons
+                    .FirstOrDefaultAsync(b => b.ButtonUid == request.ButtonUid);
+                
+                if (button != null)
+                {
+                    var errorLog = new ButtonPressLog
+                    {
+                        Id = Guid.NewGuid(),
+                        ButtonId = button.Id,
+                        RoomId = button.RoomId,
+                        ButtonUid = request.ButtonUid,
+                        PressedAt = DateTime.UtcNow,
+                        Success = false,
+                        ErrorMessage = ex.Message
+                    };
+                    _context.ButtonPressLogs.Add(errorLog);
+                    await _context.SaveChangesAsync();
+                }
+            }
+            catch
+            {
+                // Ignore logging errors
+            }
+
+            return new ButtonPressResponseDto
+            {
+                Success = false,
+                Message = "Sistem hatası oluştu",
+                DoorShouldOpen = false
+            };
         }
     }
 
