@@ -6,6 +6,8 @@ public class PhysicalButton
 
     public string ButtonUid { get; set; } = default!;  // Butonun fiziksel UUID/MAC adresi
 
+    public Guid RoomId { get; set; }  // Hangi odada bulunduğu
+
     public string? AssignedAction { get; set; }  // "OpenDoor", "RegisterCard", vb.
 
     public string? Description { get; set; }
@@ -14,4 +16,7 @@ public class PhysicalButton
 
     // Access token olmadan, sadece izin verilen butonlar çalışır
     public bool RequiresAuthentication { get; set; } = true;
+
+    // Navigation Property
+    public Room Room { get; set; } = default!;
 }
