@@ -94,6 +94,7 @@ public class RoomAccessService : IRoomAccessService
             // 5. Update DoorState.IsOpen if door should open
             if (doorShouldOpen)
             {
+                // Sadece TRUE yapıyoruz, kapatma işlemini GetDoorStatusAsync'e bıraktık.
                 await UpdateDoorStateAsync(reader.RoomId, true);
             }
 
@@ -157,13 +158,8 @@ public class RoomAccessService : IRoomAccessService
             // 10. Save all changes
             await _context.SaveChangesAsync();
 
-            // 11. IMPORTANT: Wait for ESP to poll and open door, then reset
-            if (doorShouldOpen)
-            {
-                // ESP'nin kapıyı açması için 2.5 saniye bekle
-                await Task.Delay(2500);
-                await UpdateDoorStateAsync(reader.RoomId, false);
-            }
+            // 11. DEĞİŞİKLİK: Bekleme ve resetleme kodu kaldırıldı.
+            // ESP polling (GetDoorStatusAsync) yaptığında durum otomatik sıfırlanacak.
 
             return new CardScanResponseDto
             {
@@ -206,12 +202,27 @@ public class RoomAccessService : IRoomAccessService
             await _context.SaveChangesAsync();
         }
 
+        // DEĞİŞİKLİK: Consume-on-read mantığı
+        // Mevcut durumu al
+        bool currentStatus = doorState.IsOpen;
+        DateTime lastUpdate = doorState.LastUpdatedAt;
+
+        // Eğer kapı durumu AÇIK (True) ise, okunduğu anda KAPALI (False) olarak güncelle
+        if (currentStatus)
+        {
+            doorState.IsOpen = false;
+            doorState.LastUpdatedAt = DateTime.UtcNow;
+            
+            // Veritabanını güncelle ki bir sonraki istekte false dönsün
+            await _context.SaveChangesAsync();
+        }
+
         return new DoorStatusResponseDto
         {
             RoomId = doorState.RoomId,
             RoomName = doorState.Room?.Name ?? "Bilinmeyen Oda",
-            IsOpen = doorState.IsOpen,
-            LastUpdatedAt = doorState.LastUpdatedAt
+            IsOpen = currentStatus, // Burada API'ye hala TRUE dönüyoruz (ESP kapıyı açsın diye)
+            LastUpdatedAt = lastUpdate
         };
     }
 
@@ -308,8 +319,8 @@ public class RoomAccessService : IRoomAccessService
             // 4. Save changes
             await _context.SaveChangesAsync();
 
-            // 5. IMPORTANT: Immediately reset door state back to false (ESP will close door after opening)
-            await UpdateDoorStateAsync(roomId, false);
+            // 5. DEĞİŞİKLİK: Manuel resetleme kaldırıldı.
+            // GetDoorStatusAsync çağrıldığında resetlenecek.
 
             return new ButtonPressResponseDto
             {
