@@ -4,92 +4,102 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace ailab_super_app.Controllers;
-
-[ApiController]
-[Route("api/[controller]")]
-[Authorize] // Sadece giriş yapmış kullanıcılar (herhangi bir rol)
-public class ProfileController : ControllerBase
+namespace ailab_super_app.Controllers
 {
-    private readonly IUserService _userService;
-    private readonly ILogger<ProfileController> _logger;
-
-    public ProfileController(IUserService userService, ILogger<ProfileController> logger)
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize]
+    public class ProfileController : ControllerBase
     {
-        _userService = userService;
-        _logger = logger;
-    }
+        private readonly IUserService _userService;
+        private readonly IProfileService _profileService;
+        private readonly ILogger<ProfileController> _logger;
 
-    /// <summary>
-    /// Get current user's profile (Any authenticated user)
-    /// </summary>
-    [HttpGet]
-    public async Task<ActionResult<UserDto>> GetMyProfile()
-    {
-        try
+        public ProfileController(
+            IUserService userService, 
+            IProfileService profileService,
+            ILogger<ProfileController> logger)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var currentUserId))
+            _userService = userService;
+            _profileService = profileService;
+            _logger = logger;
+        }
+
+        /// <summary>
+        /// Get current user's profile
+        /// </summary>
+        [HttpGet]
+        public async Task<ActionResult<UserDto>> GetMyProfile()
+        {
+            try
             {
-                return Unauthorized(new { message = "Kullanıcı kimliği doğrulanamadı" });
+                var userId = GetCurrentUserId();
+                var user = await _userService.GetUserByIdAsync(userId);
+                return Ok(user);
             }
-
-            var user = await _userService.GetUserByIdAsync(currentUserId);
-            return Ok(user);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Get my profile hatası: {ex.Message}");
-            return NotFound(new { message = ex.Message });
-        }
-    }
-
-    /// <summary>
-    /// Update current user's profile (Any authenticated user)
-    /// </summary>
-    [HttpPut]
-    public async Task<ActionResult<UserDto>> UpdateMyProfile([FromBody] UpdateUserDto dto)
-    {
-        try
-        {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var currentUserId))
+            catch (Exception ex)
             {
-                return Unauthorized(new { message = "Kullanıcı kimliği doğrulanamadı" });
+                _logger.LogError($"Get profile error: {ex.Message}");
+                return NotFound(new { message = ex.Message });
             }
-
-            var user = await _userService.UpdateUserAsync(currentUserId, dto);
-            return Ok(user);
         }
-        catch (Exception ex)
-        {
-            _logger.LogError($"Update my profile hatası: {ex.Message}");
-            return BadRequest(new { message = ex.Message });
-        }
-    }
 
-    /// <summary>
-    /// Update current user's avatar (Any authenticated user)
-    /// </summary>
-    [HttpPut("avatar")]
-    public async Task<ActionResult<UserDto>> UpdateMyAvatar([FromBody] UpdateAvatarDto dto)
-    {
-        try
+        /// <summary>
+        /// Update current user's profile info (Phone, etc.)
+        /// </summary>
+        [HttpPut]
+        public async Task<ActionResult<UserDto>> UpdateMyProfile([FromBody] UpdateUserDto dto)
         {
-            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userId) || !Guid.TryParse(userId, out var currentUserId))
+            try
             {
-                return Unauthorized(new { message = "Kullanıcı kimliği doğrulanamadı" });
+                var userId = GetCurrentUserId();
+                var user = await _userService.UpdateUserAsync(userId, dto);
+                return Ok(user);
             }
-
-            var user = await _userService.UpdateAvatarAsync(currentUserId, dto.AvatarFileName);
-            return Ok(user);
+            catch (Exception ex)
+            {
+                _logger.LogError($"Update profile error: {ex.Message}");
+                return BadRequest(new { message = ex.Message });
+            }
         }
-        catch (Exception ex)
+
+        /// <summary>
+        /// Update profile image URL (After frontend upload to Firebase)
+        /// </summary>
+        [HttpPut("image")]
+        public async Task<IActionResult> UpdateProfileImage([FromBody] UpdateProfileImageDto dto)
         {
-            _logger.LogError($"Update avatar hatası: {ex.Message}");
-            return BadRequest(new { message = ex.Message });
+            try
+            {
+                var userId = GetCurrentUserId();
+                await _profileService.UpdateProfileImageAsync(userId, dto);
+                return Ok(new { message = "Profil fotoğrafı başarıyla güncellendi.", url = dto.ProfileImageUrl });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Update profile image error: {ex.Message}");
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Get list of default system avatars
+        /// </summary>
+        [HttpGet("avatars/defaults")]
+        public ActionResult<DefaultAvatarListDto> GetDefaultAvatars()
+        {
+            var avatars = _profileService.GetDefaultAvatars();
+            return Ok(avatars);
+        }
+
+        private Guid GetCurrentUserId()
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            {
+                throw new UnauthorizedAccessException("Kullanıcı kimliği doğrulanamadı.");
+            }
+            return userId;
         }
     }
 }
-

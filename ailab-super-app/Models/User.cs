@@ -18,7 +18,8 @@ public class User : IdentityUser<Guid>
     [MaxLength(20)]
     public string? Phone { get; set; }
 
-    public string? AvatarUrl { get; set; }
+    [MaxLength(500)]
+    public string? ProfileImageUrl { get; set; }
 
     // Yeni: Okul numarası
     [MaxLength(50)]

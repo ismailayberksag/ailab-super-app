@@ -1,10 +1,11 @@
-﻿using ailab_super_app.Data;
+using ailab_super_app.Data;
 using ailab_super_app.DTOs.User;
 using ailab_super_app.Helpers;
 using ailab_super_app.Models;
 using ailab_super_app.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.IO;
 
 namespace ailab_super_app.Services
 {
@@ -82,7 +83,7 @@ namespace ailab_super_app.Services
                 SchoolNumber = user.SchoolNumber,
                 FullName = user.FullName,
                 Phone = user.Phone,
-                AvatarUrl = user.AvatarUrl,
+                ProfileImageUrl = user.ProfileImageUrl,
                 Status = user.Status,
                 TotalScore = user.TotalScore,
                 CreatedAt = user.CreatedAt,
@@ -106,11 +107,7 @@ namespace ailab_super_app.Services
                 user.Phone = dto.Phone;
                 user.PhoneNumber = dto.Phone; // Keep Identity PhoneNumber in sync
             }
-
-            if (dto.AvatarUrl != null)
-            {
-                user.AvatarUrl = dto.AvatarUrl;
-            }
+            // AvatarUrl update logic removed
 
             user.UpdatedAt = DateTime.UtcNow;
 
@@ -171,28 +168,109 @@ namespace ailab_super_app.Services
                 throw new Exception($"Kullanıcı silinemedi: {errors}");
             }
         }
-
-        public async Task<UserDto> UpdateAvatarAsync(Guid userId, string avatarFileName)
+        
+        public async Task<UserDto> UpdateAvatarAsync(Guid userId, string avatarUrl)
         {
-            var user = await _userManager.FindByIdAsync(userId.ToString());
+            var user = await _userManager.Users.Include(u => u.UserAvatar).FirstOrDefaultAsync(u => u.Id == userId);
+            
+            if (user == null || user.IsDeleted)
+            {
+                throw new Exception("Kullanıcı bulunamadı");
+            }
+
+            if (string.IsNullOrWhiteSpace(avatarUrl))
+            {
+                throw new ArgumentException("Avatar URL'i boş olamaz.");
+            }
+            
+            // Yeni avatar kaydını avatars tablosuna ekle
+            var newAvatar = new Avatar
+            {
+                Id = Guid.NewGuid(),
+                Name = $"user_{userId}_custom_{DateTime.UtcNow.Ticks}", // Benzersiz isim
+                StoragePath = avatarUrl,
+                PublicUrl = avatarUrl, // Frontend'den gelen URL'i direkt kullan
+                IsSystemDefault = false,
+                CreatedAt = DateTime.UtcNow
+            };
+            _context.Avatars.Add(newAvatar);
+
+            // Kullanıcının UserAvatar kaydını güncelle veya oluştur
+            if (user.UserAvatar != null)
+            {
+                user.UserAvatar.AvatarId = newAvatar.Id;
+                user.UserAvatar.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                user.UserAvatar = new UserAvatar
+                {
+                    UserId = userId,
+                    AvatarId = newAvatar.Id,
+                    UpdatedAt = DateTime.UtcNow
+                };
+            }
+            
+            await _context.SaveChangesAsync();
+
+            return await GetUserByIdAsync(userId);
+        }
+
+        public async Task<UserDto> SetSystemAvatarAsync(Guid userId, Guid avatarId)
+        {
+            var user = await _userManager.Users.Include(u => u.UserAvatar).FirstOrDefaultAsync(u => u.Id == userId);
 
             if (user == null || user.IsDeleted)
             {
                 throw new Exception("Kullanıcı bulunamadı");
             }
 
-            user.AvatarUrl = avatarFileName;
-            user.UpdatedAt = DateTime.UtcNow;
-
-            var result = await _userManager.UpdateAsync(user);
-
-            if (!result.Succeeded)
+            var systemAvatar = await _context.Avatars.FirstOrDefaultAsync(a => a.Id == avatarId && a.IsSystemDefault);
+            if (systemAvatar == null)
             {
-                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-                throw new Exception($"Avatar güncellenemedi: {errors}");
+                throw new Exception("Sistem avatarı bulunamadı veya geçerli değil.");
             }
 
+            // Kullanıcının UserAvatar kaydını güncelle veya oluştur
+            if (user.UserAvatar != null)
+            {
+                user.UserAvatar.AvatarId = systemAvatar.Id;
+                user.UserAvatar.UpdatedAt = DateTime.UtcNow;
+            }
+            else
+            {
+                user.UserAvatar = new UserAvatar
+                {
+                    UserId = userId,
+                    AvatarId = systemAvatar.Id,
+                    UpdatedAt = DateTime.UtcNow
+                };
+            }
+
+            await _context.SaveChangesAsync();
+
             return await GetUserByIdAsync(userId);
+        }
+
+        public async Task<string> GetAvatarAsync(Guid userId)
+        {
+            var avatarUrl = await _context.Users
+                .Where(u => u.Id == userId && !u.IsDeleted)
+                .Select(u => u.UserAvatar!.Avatar.PublicUrl) // PublicUrl'i döndür
+                .FirstOrDefaultAsync();
+
+            if (string.IsNullOrEmpty(avatarUrl))
+            {
+                // Kullanıcının avatarı yoksa veya silinmişse, varsayılan sistem avatarını döndür
+                var defaultAvatar = await _context.Avatars.FirstOrDefaultAsync(a => a.IsSystemDefault);
+                if (defaultAvatar != null)
+                {
+                    return defaultAvatar.PublicUrl;
+                }
+                // Hiçbir varsayılan avatar da yoksa bir fallback URL döndür
+                return "https://default-fallback-avatar.com/default.png"; // Placeholder
+            }
+            return avatarUrl;
         }
     }
 }

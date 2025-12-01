@@ -11,14 +11,12 @@ public class UserAvatar
     public Guid UserId { get; set; }
 
     [Required]
-    public byte[] ImageData { get; set; } = Array.Empty<byte>();
-
-    [Required]
-    [MaxLength(50)]
-    public string ContentType { get; set; } = "image/png"; // png, jpeg vs.
+    [ForeignKey("Avatar")]
+    public Guid AvatarId { get; set; }
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
-    // Navigation Property
+    // Navigation Properties
     public virtual User User { get; set; } = null!;
+    public virtual Avatar Avatar { get; set; } = null!;
 }
