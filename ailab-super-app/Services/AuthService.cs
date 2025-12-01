@@ -19,18 +19,15 @@ namespace ailab_super_app.Services
         private readonly UserManager<User> _userManager;
         private readonly AppDbContext _context;
         private readonly JwtSettings _jwtSettings;
-        private readonly IUserService _userService; // Yeni: IUserService eklendi
 
         public AuthService(
             UserManager<User> userManager,
             AppDbContext context,
-            IOptions<JwtSettings> jwtSettings,
-            IUserService userService) // Yeni: IUserService constructor'a eklendi
+            IOptions<JwtSettings> jwtSettings)
         {
             _userManager = userManager;
             _context = context;
             _jwtSettings = jwtSettings.Value;
-            _userService = userService; // Yeni: Atama
         }
 
         public async Task<LoginResponseDto> RegisterAsync(RegisterRequestDto request, string ipAddress)
@@ -55,7 +52,9 @@ namespace ailab_super_app.Services
                 SchoolNumber = request.SchoolNumber,// yeni alan
                 Status = UserStatus.Active,
                 CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow
+                UpdatedAt = DateTime.UtcNow,
+                // Varsayılan avatar
+                ProfileImageUrl = "https://firebasestorage.googleapis.com/v0/b/ailab-super-app.firebasestorage.app/o/default.webp?alt=media"
             };
 
             var result = await _userManager.CreateAsync(user, request.Password);
@@ -75,39 +74,7 @@ namespace ailab_super_app.Services
             }
 
             //login response dön
-            var loginResponse = await GenerateLoginResponse(user, ipAddress);
-
-            // 1. Varsayılan avatarı bul
-            var defaultAvatar = await _context.Avatars.FirstOrDefaultAsync(a => a.IsSystemDefault);
-
-            // 2. Yoksa oluştur (Seed data mantığı)
-            if (defaultAvatar == null)
-            {
-                defaultAvatar = new Avatar
-                {
-                    Id = Guid.NewGuid(),
-                    Name = "Default",
-                    StoragePath = "avatars/default.png", // Firebase Path
-                    PublicUrl = "https://firebasestorage.googleapis.com/v0/b/YOUR-BUCKET/o/avatars%2Fdefault.png?alt=media", // Dummy URL
-                    IsSystemDefault = true,
-                    CreatedAt = DateTime.UtcNow
-                };
-                _context.Avatars.Add(defaultAvatar);
-                // SaveChanges aşağıda yapılacak
-            }
-
-            // 3. Kullanıcıya ata
-            var userAvatar = new UserAvatar
-            {
-                UserId = user.Id,
-                AvatarId = defaultAvatar.Id, // FK
-                UpdatedAt = DateTime.UtcNow
-            };
-            _context.UserAvatars.Add(userAvatar);
-            
-            await _context.SaveChangesAsync();
-
-            return loginResponse;
+            return await GenerateLoginResponse(user, ipAddress);
         }
 
         public async Task<LoginResponseDto> LoginAsync(LoginRequestDto request, string ipAddress)
@@ -213,9 +180,6 @@ namespace ailab_super_app.Services
             // Kullanıcı rollerini al
             var roles = await _userManager.GetRolesAsync(user);
 
-            // Avatar URL'ini servis aracılığıyla al
-            var avatarUrl = await _userService.GetAvatarAsync(user.Id);
-
             return new LoginResponseDto
             {
                 Token = accessToken,
@@ -227,7 +191,7 @@ namespace ailab_super_app.Services
                     UserName = user.UserName!,
                     Email = user.Email!,
                     FullName = user.FullName,
-                    AvatarUrl = avatarUrl, // Yeni Avatar URL
+                    ProfileImageUrl = user.ProfileImageUrl, // Doğrudan property
                     Roles = roles.ToList()
                 }
             };

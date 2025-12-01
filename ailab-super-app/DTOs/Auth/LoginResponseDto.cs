@@ -18,7 +18,7 @@ namespace ailab_super_app.DTOs.Auth
         public string Email { get; set; } = default!;
         public string? FullName { get; set; }
         public string? PhoneNumber { get; set; }
-        public string? AvatarUrl { get; set; }
+        public string? ProfileImageUrl { get; set; }
         public List<string> Roles { get; set; } = new();
     }
 }
