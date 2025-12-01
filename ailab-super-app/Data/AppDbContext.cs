@@ -74,7 +74,7 @@ namespace ailab_super_app.Data
                 e.Property(x => x.Status).HasConversion<string>();
                 e.Property(x => x.FullName).HasMaxLength(200);
                 e.Property(x => x.Phone).HasMaxLength(20);
-                e.Property(x => x.AvatarUrl).HasMaxLength(500);
+                e.Property(x => x.ProfileImageUrl).HasMaxLength(500);
 
                 // Yeni: SchoolNumber konfigurasyonu ve benzersiz index
                 e.Property(x => x.SchoolNumber).HasMaxLength(50);
