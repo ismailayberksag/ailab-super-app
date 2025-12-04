@@ -1,33 +1,52 @@
+using ailab_super_app.DTOs.Statistics;
 using ailab_super_app.DTOs.User;
 using ailab_super_app.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 
-namespace ailab_super_app.Controllers
+namespace ailab_super_app.Controllers;
+
+[ApiController]
+[Route("api/[controller]")]
+[Authorize]
+public class ProfileController : ControllerBase
 {
-    [ApiController]
-    [Route("api/[controller]")]
-    [Authorize]
-    public class ProfileController : ControllerBase
+    private readonly IUserService _userService;
+    private readonly IProfileService _profileService;
+    private readonly ILogger<ProfileController> _logger;
+
+    public ProfileController(
+        IUserService userService, 
+        IProfileService profileService,
+        ILogger<ProfileController> logger)
     {
-        private readonly IUserService _userService;
-        private readonly IProfileService _profileService;
-        private readonly ILogger<ProfileController> _logger;
+        _userService = userService;
+        _profileService = profileService;
+        _logger = logger;
+    }
 
-        public ProfileController(
-            IUserService userService, 
-            IProfileService profileService,
-            ILogger<ProfileController> logger)
+    /// <summary>
+    /// Get top 3 users by total score (Leaderboard)
+    /// </summary>
+    [HttpGet("leaderboard")]
+    public async Task<ActionResult<List<LeaderboardUserDto>>> GetLeaderboard()
+    {
+        try
         {
-            _userService = userService;
-            _profileService = profileService;
-            _logger = logger;
+            var topUsers = await _userService.GetTopUsersAsync(3);
+            return Ok(topUsers);
         }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Get leaderboard error: {ex.Message}");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
 
-        /// <summary>
-        /// Get current user's profile
-        /// </summary>
+    /// <summary>
+    /// Get current user's profile
+    /// </summary>
         [HttpGet]
         public async Task<ActionResult<UserDto>> GetMyProfile()
         {

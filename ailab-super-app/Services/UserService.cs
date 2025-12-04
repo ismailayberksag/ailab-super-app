@@ -1,4 +1,5 @@
 using ailab_super_app.Data;
+using ailab_super_app.DTOs.Statistics;
 using ailab_super_app.DTOs.User;
 using ailab_super_app.Helpers;
 using ailab_super_app.Models;
@@ -165,6 +166,24 @@ namespace ailab_super_app.Services
                 var errors = string.Join(", ", result.Errors.Select(e => e.Description));
                 throw new Exception($"Kullanıcı silinemedi: {errors}");
             }
+        }
+
+        public async Task<List<LeaderboardUserDto>> GetTopUsersAsync(int count)
+        {
+            var users = await _context.Users
+                .Where(u => !u.IsDeleted && u.Status == UserStatus.Active)
+                .OrderByDescending(u => u.TotalScore)
+                .ThenBy(u => u.FullName)
+                .Take(count)
+                .Select(u => new LeaderboardUserDto
+                {
+                    FullName = u.FullName ?? u.UserName ?? "Bilinmeyen Kullanıcı",
+                    TotalScore = u.TotalScore,
+                    ProfileImageUrl = u.ProfileImageUrl
+                })
+                .ToListAsync();
+
+            return users;
         }
     }
 }
