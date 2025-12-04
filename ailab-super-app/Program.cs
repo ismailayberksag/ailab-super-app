@@ -2,6 +2,7 @@
 using ailab_super_app.Models;
 using ailab_super_app.Configuration;
 using ailab_super_app.Services;
+using ailab_super_app.Services.Background; // Yeni eklenen
 using ailab_super_app.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;

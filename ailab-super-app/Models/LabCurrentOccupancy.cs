@@ -8,6 +8,8 @@ public class LabCurrentOccupancy
 
     public string? CardUid { get; set; }
 
+    public Guid? RoomId { get; set; }
+
     // Navigation Property
     public User User { get; set; } = default!;
 }

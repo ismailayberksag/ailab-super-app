@@ -14,6 +14,16 @@ public class LabEntry
 
     public DateTime EntryTime { get; set; } = DateTime.UtcNow;
 
+    public DateTime? ExitTime { get; set; } // Çıkış zamanı
+
+    public int? DurationMinutes { get; set; } // İçeride kalınan süre
+
+    public Guid? RoomId { get; set; } // Hangi odada?
+
+    public Guid? RfidCardId { get; set; } // Hangi kartla?
+
+    public string? Notes { get; set; }
+
     // Navigation Property
     public User User { get; set; } = default!;
 }

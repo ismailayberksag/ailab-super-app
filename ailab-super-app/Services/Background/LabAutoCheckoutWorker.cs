@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using ailab_super_app.Data;
 using ailab_super_app.Models;
+using ailab_super_app.Models.Enums; // EntryType için eklendi
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -78,26 +79,36 @@ namespace ailab_super_app.Services.Background
                     labEntry.Notes = "Otomatik çıkış (Süre aşımı)";
                     
                     // RoomAccess kaydı ekle (log amaçlı)
-                    var lastAccess = await dbContext.RoomAccesses
-                                                    .Where(ra => ra.UserId == labEntry.UserId)
-                                                    .OrderByDescending(ra => ra.AccessedAt)
-                                                    .FirstOrDefaultAsync();
-
-                    var newRoomAccess = new RoomAccess
+                    // LabEntry.RfidCardId nullable olabilir, RoomAccess için zorunlu ise kontrol etmeliyiz.
+                    // Şimdilik RfidCardId varsa kullan, yoksa varsayılan bir GUID veya hata (ama hata fırlatmayalım).
+                    // DB migration ile RfidCardId eklendiği için null gelebilir.
+                    
+                    var rfidCardId = labEntry.RfidCardId ?? Guid.Empty; // DİKKAT: Bu geçici bir çözüm. Migration ile nullable yapıldıysa sorun yok.
+                    
+                    if (rfidCardId == Guid.Empty)
                     {
-                        Id = Guid.NewGuid(),
-                        UserId = labEntry.UserId,
-                        RoomId = labEntry.RoomId, // LabEntry'den al
-                        RfidCardId = labEntry.RfidCardId, // LabEntry'den al
-                        AccessedAt = labEntry.ExitTime.Value, // Otomatik çıkış zamanı
-                        Direction = AccessDirection.Exit,
-                        IsGranted = true, // Otomatik çıkış başarılı sayılır
-                        DenyReason = "Otomatik çıkış: Süre aşımı",
-                        CreatedAt = DateTime.UtcNow
-                    };
-                    dbContext.RoomAccesses.Add(newRoomAccess);
+                         // Kullanıcının herhangi bir aktif kartını bulmaya çalış
+                         var userCard = await dbContext.RfidCards.FirstOrDefaultAsync(c => c.UserId == labEntry.UserId);
+                         rfidCardId = userCard?.Id ?? Guid.Empty;
+                    }
 
-                    // LabCurrentOccupancy tablosundan kaldır (eğer hala varsa)
+                    if (rfidCardId != Guid.Empty && labEntry.RoomId.HasValue)
+                    {
+                        var newRoomAccess = new RoomAccess
+                        {
+                            Id = Guid.NewGuid(),
+                            UserId = labEntry.UserId,
+                            RoomId = labEntry.RoomId.Value,
+                            RfidCardId = rfidCardId,
+                            AccessedAt = labEntry.ExitTime.Value,
+                            Direction = EntryType.Exit,
+                            IsAuthorized = true,
+                            DenyReason = "Otomatik çıkış: Süre aşımı"
+                        };
+                        dbContext.RoomAccesses.Add(newRoomAccess);
+                    }
+
+                    // LabCurrentOccupancy tablosundan kaldır
                     var currentOccupancy = await dbContext.LabCurrentOccupancy.FindAsync(labEntry.UserId);
                     if (currentOccupancy != null)
                     {
