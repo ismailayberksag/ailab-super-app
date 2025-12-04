@@ -51,3 +51,5 @@ node_modules/
 
 # Windows
 Thumbs.db
+
+firebase-service-account.json
