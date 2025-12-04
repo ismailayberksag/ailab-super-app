@@ -1,9 +1,12 @@
 using ailab_super_app.Data;
 using ailab_super_app.DTOs.Rfid;
+using ailab_super_app.DTOs.Statistics;
 using ailab_super_app.Models;
 using ailab_super_app.Models.Enums;
 using ailab_super_app.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
 
 namespace ailab_super_app.Services;
 
@@ -11,11 +14,19 @@ public class RoomAccessService : IRoomAccessService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<RoomAccessService> _logger;
+    private readonly UserManager<User> _userManager;
+    private readonly IProjectService _projectService; // Takım arkadaşları için
 
-    public RoomAccessService(AppDbContext context, ILogger<RoomAccessService> logger)
+    public RoomAccessService(
+        AppDbContext context, 
+        ILogger<RoomAccessService> logger,
+        UserManager<User> userManager,
+        IProjectService projectService) // Inject edildi
     {
         _context = context;
         _logger = logger;
+        _userManager = userManager;
+        _projectService = projectService;
     }
 
     public async Task<CardScanResponseDto> ProcessCardScanAsync(CardScanRequestDto request)
@@ -54,42 +65,51 @@ public class RoomAccessService : IRoomAccessService
             var userId = rfidCard.UserId.Value;
 
             // 3. Check if user is currently in lab (exists in lab_current_occupancy)
-            var isUserInLab = await _context.LabCurrentOccupancy
-                .AnyAsync(o => o.UserId == userId);
+            var existingOccupancy = await _context.LabCurrentOccupancy
+                .FirstOrDefaultAsync(o => o.UserId == userId && o.RoomId == reader.RoomId); // RoomId'ye göre kontrol
+
+            bool isUserCurrentlyInThisRoom = (existingOccupancy != null);
 
             // 4. Apply door logic based on table
             bool doorShouldOpen = false;
-            bool isEntry = false;
+            EntryType accessType;
             string actionMessage = "";
 
-            if (!isUserInLab && reader.Location == ReaderLocation.Outside)
+            if (!isUserCurrentlyInThisRoom && reader.Location == ReaderLocation.Outside) // Dışarıdan Giriş
             {
-                // User outside + Outside reader → open door, add to occupancy
                 doorShouldOpen = true;
-                isEntry = true;
+                accessType = EntryType.Entry;
                 actionMessage = "Giriş yapıldı";
             }
-            else if (!isUserInLab && reader.Location == ReaderLocation.Inside)
+            else if (!isUserCurrentlyInThisRoom && reader.Location == ReaderLocation.Inside) // İçeriden konumlandırma (genelde olmaz ama log için)
             {
-                // User outside + Inside reader → don't open, add to occupancy
-                doorShouldOpen = false;
-                isEntry = true;
+                doorShouldOpen = false; // Kapı açılmaz
+                accessType = EntryType.Entry;
                 actionMessage = "İçeride konumlandırıldı";
             }
-            else if (isUserInLab && reader.Location == ReaderLocation.Outside)
+            else if (isUserCurrentlyInThisRoom && reader.Location == ReaderLocation.Inside) // İçeriden Çıkış
             {
-                // User inside + Outside reader → don't open, remove from occupancy
-                doorShouldOpen = false;
-                isEntry = false;
+                doorShouldOpen = true; // Kapı açılır
+                accessType = EntryType.Exit;
                 actionMessage = "Çıkış yapıldı";
             }
-            else if (isUserInLab && reader.Location == ReaderLocation.Inside)
+            else if (isUserCurrentlyInThisRoom && reader.Location == ReaderLocation.Outside) // Dışarıdan çıkış (yanlış okuma veya unutma durumu)
             {
-                // User inside + Inside reader → open door, remove from occupancy
-                doorShouldOpen = true;
-                isEntry = false;
-                actionMessage = "Çıkış yapıldı";
+                doorShouldOpen = false; // Kapı açılmaz
+                accessType = EntryType.Exit;
+                actionMessage = "Çıkış kaydı (unutulan çıkış)";
             }
+            else
+            {
+                // Bilinmeyen durum, güvenlik için kapı açma
+                return new CardScanResponseDto
+                {
+                    Success = false,
+                    Message = "Erişim hatası: Bilinmeyen durum",
+                    DoorShouldOpen = false
+                };
+            }
+
 
             // 5. Update DoorState.IsOpen if door should open
             if (doorShouldOpen)
@@ -98,32 +118,25 @@ public class RoomAccessService : IRoomAccessService
                 await UpdateDoorStateAsync(reader.RoomId, true);
             }
 
-            // 6. Update user occupancy
-            if (isEntry)
+            // 6. Update LabCurrentOccupancy
+            if (accessType == EntryType.Entry)
             {
-                // Add user to lab
-                var existingOccupancy = await _context.LabCurrentOccupancy
-                    .FirstOrDefaultAsync(o => o.UserId == userId);
-                
                 if (existingOccupancy == null)
                 {
                     _context.LabCurrentOccupancy.Add(new LabCurrentOccupancy
                     {
                         UserId = userId,
+                        RoomId = reader.RoomId,
                         EntryTime = DateTime.UtcNow,
                         CardUid = request.CardUid
                     });
                 }
             }
-            else
+            else // Exit
             {
-                // Remove user from lab
-                var occupancy = await _context.LabCurrentOccupancy
-                    .FirstOrDefaultAsync(o => o.UserId == userId);
-                
-                if (occupancy != null)
+                if (existingOccupancy != null)
                 {
-                    _context.LabCurrentOccupancy.Remove(occupancy);
+                    _context.LabCurrentOccupancy.Remove(existingOccupancy);
                 }
             }
 
@@ -133,24 +146,41 @@ public class RoomAccessService : IRoomAccessService
                 RoomId = reader.RoomId,
                 RfidCardId = rfidCard.Id,
                 UserId = userId,
-                Direction = isEntry ? EntryType.Entry : EntryType.Exit,
-                IsAuthorized = true,
+                Direction = accessType,
+                IsAuthorized = true, // Yetkilendirme yapıldı varsayımıyla
                 AccessedAt = DateTime.UtcNow,
                 RawPayload = $"CardUid: {request.CardUid}, ReaderUid: {request.ReaderUid}"
             };
 
             _context.RoomAccesses.Add(roomAccess);
 
-            // 8. Create LabEntry record
-            var labEntry = new LabEntry
+            // 8. Create or Update LabEntry record
+            if (accessType == EntryType.Entry)
             {
-                UserId = userId,
-                CardUid = request.CardUid,
-                EntryType = isEntry ? EntryType.Entry : EntryType.Exit,
-                EntryTime = DateTime.UtcNow
-            };
-
-            _context.LabEntries.Add(labEntry);
+                var newLabEntry = new LabEntry
+                {
+                    UserId = userId,
+                    RoomId = reader.RoomId,
+                    RfidCardId = rfidCard.Id,
+                    EntryType = EntryType.Entry,
+                    EntryTime = DateTime.UtcNow
+                };
+                _context.LabEntries.Add(newLabEntry);
+            }
+            else // Exit
+            {
+                // Kullanıcının en son açık LabEntry kaydını bul ve kapat
+                var lastEntry = await _context.LabEntries
+                                            .Where(le => le.UserId == userId && le.ExitTime == null && le.RoomId == reader.RoomId)
+                                            .OrderByDescending(le => le.EntryTime)
+                                            .FirstOrDefaultAsync();
+                if (lastEntry != null)
+                {
+                    lastEntry.ExitTime = DateTime.UtcNow;
+                    lastEntry.EntryType = EntryType.Exit; // Aslında çıkış ama log için EntryType'ı Exit de tutabiliriz
+                    lastEntry.DurationMinutes = (int)(lastEntry.ExitTime.Value - lastEntry.EntryTime).TotalMinutes;
+                }
+            }
 
             // 9. Update RfidCard.LastUsed
             rfidCard.LastUsed = DateTime.UtcNow;
@@ -158,16 +188,13 @@ public class RoomAccessService : IRoomAccessService
             // 10. Save all changes
             await _context.SaveChangesAsync();
 
-            // 11. DEĞİŞİKLİK: Bekleme ve resetleme kodu kaldırıldı.
-            // ESP polling (GetDoorStatusAsync) yaptığında durum otomatik sıfırlanacak.
-
             return new CardScanResponseDto
             {
                 Success = true,
                 Message = actionMessage,
                 DoorShouldOpen = doorShouldOpen,
                 UserName = rfidCard.User?.FullName ?? rfidCard.User?.UserName ?? "Bilinmeyen",
-                IsEntry = isEntry
+                IsEntry = (accessType == EntryType.Entry)
             };
         }
         catch (Exception ex)
@@ -367,6 +394,121 @@ public class RoomAccessService : IRoomAccessService
                 DoorShouldOpen = false
             };
         }
+    }
+
+    private async Task UpdateDoorStateAsync(Guid roomId, bool isOpen)
+    {
+        var doorState = await _context.DoorStates
+            .FirstOrDefaultAsync(d => d.RoomId == roomId);
+
+        if (doorState == null)
+        {
+            doorState = new DoorState
+            {
+                Id = Guid.NewGuid(),
+                RoomId = roomId,
+                IsOpen = isOpen,
+                LastUpdatedAt = DateTime.UtcNow
+            };
+            _context.DoorStates.Add(doorState);
+        }
+        else
+        {
+            doorState.IsOpen = isOpen;
+            doorState.LastUpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<LabStatusDto> GetGlobalLabStatusAsync()
+    {
+        var labRoom = await _context.Rooms.FirstOrDefaultAsync(); // Varsayım: Tek bir Lab odası var
+        if (labRoom == null) throw new Exception("Lab odası bulunamadı.");
+
+        // 1. İçerideki kişi sayısı
+        var currentOccupancy = await _context.LabCurrentOccupancy
+                                             .Where(o => o.RoomId == labRoom.Id)
+                                             .CountAsync();
+
+        // 2. Toplam kapasite (aktif RFID kart sayısı)
+        var totalCapacity = await _context.RfidCards
+                                          .Where(rc => rc.IsActive && !rc.IsDeleted)
+                                          .CountAsync();
+
+        return new LabStatusDto
+        {
+            CurrentOccupancyCount = currentOccupancy,
+            TotalCapacity = totalCapacity,
+            TeammatesInsideCount = 0, // Bu metot global olduğu için sıfır kalır.
+            TotalTeammatesCount = 0   // Bu metot global olduğu için sıfır kalır.
+        };
+    }
+
+    public async Task<UserLabStatsDto> GetUserLabStatsAsync(Guid userId)
+    {
+        // Son giriş tarihini bul
+        var lastEntry = await _context.LabEntries
+                                      .Where(le => le.UserId == userId && le.EntryType == EntryType.Entry)
+                                      .OrderByDescending(le => le.EntryTime)
+                                      .Select(le => (DateTime?)le.EntryTime) // Nullable olarak seç
+                                      .FirstOrDefaultAsync();
+
+        // Toplam geçirilen süreyi hesapla
+        var totalDurationMinutes = await _context.LabEntries
+                                                 .Where(le => le.UserId == userId && le.DurationMinutes.HasValue)
+                                                 .SumAsync(le => le.DurationMinutes!.Value);
+
+        // Şu an içerideyse, bu süreyi de ekle
+        var currentOccupancy = await _context.LabCurrentOccupancy
+                                             .FirstOrDefaultAsync(o => o.UserId == userId);
+
+        if (currentOccupancy != null)
+        {
+            var timeSinceEntry = DateTime.UtcNow - currentOccupancy.EntryTime;
+            totalDurationMinutes += (int)timeSinceEntry.TotalMinutes;
+        }
+
+        return new UserLabStatsDto
+        {
+            LastEntryDate = lastEntry,
+            TotalTimeSpent = TimeSpan.FromMinutes(totalDurationMinutes)
+        };
+    }
+
+    public async Task<(int TeammatesInsideCount, int TotalTeammatesCount)> GetTeammateLabStatusAsync(Guid userId)
+    {
+        // 1. Kullanıcının dahil olduğu tüm projelerin ID'lerini bul
+        var userProjectIds = await _context.ProjectMembers
+                                            .Where(pm => pm.UserId == userId && !pm.IsDeleted)
+                                            .Select(pm => pm.ProjectId)
+                                            .ToListAsync();
+
+        if (!userProjectIds.Any())
+        {
+            return (0, 0); // Kullanıcı hiçbir projede değilse
+        }
+
+        // 2. Bu projelerdeki tüm tekil üyeleri (kendisi hariç) bul
+        var allTeammateUserIds = await _context.ProjectMembers
+                                                .Where(pm => userProjectIds.Contains(pm.ProjectId) &&
+                                                             pm.UserId != userId &&
+                                                             !pm.IsDeleted)
+                                                .Select(pm => pm.UserId)
+                                                .Distinct() // Aynı kişi birden fazla projede olsa bile 1 kez say
+                                                .ToListAsync();
+
+        if (!allTeammateUserIds.Any())
+        {
+            return (0, 0); // Hiç takım arkadaşı yoksa
+        }
+
+        // 3. Labda olan takım arkadaşı sayısını bul
+        var teammatesInsideCount = await _context.LabCurrentOccupancy
+                                                  .Where(loc => allTeammateUserIds.Contains(loc.UserId))
+                                                  .CountAsync();
+
+        return (teammatesInsideCount, allTeammateUserIds.Count);
     }
 
     private async Task UpdateDoorStateAsync(Guid roomId, bool isOpen)
