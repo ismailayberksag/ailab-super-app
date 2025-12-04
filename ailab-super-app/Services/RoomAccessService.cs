@@ -510,29 +510,4 @@ public class RoomAccessService : IRoomAccessService
 
         return (teammatesInsideCount, allTeammateUserIds.Count);
     }
-
-    private async Task UpdateDoorStateAsync(Guid roomId, bool isOpen)
-    {
-        var doorState = await _context.DoorStates
-            .FirstOrDefaultAsync(d => d.RoomId == roomId);
-
-        if (doorState == null)
-        {
-            doorState = new DoorState
-            {
-                Id = Guid.NewGuid(),
-                RoomId = roomId,
-                IsOpen = isOpen,
-                LastUpdatedAt = DateTime.UtcNow
-            };
-            _context.DoorStates.Add(doorState);
-        }
-        else
-        {
-            doorState.IsOpen = isOpen;
-            doorState.LastUpdatedAt = DateTime.UtcNow;
-        }
-
-        await _context.SaveChangesAsync();
-    }
 }
