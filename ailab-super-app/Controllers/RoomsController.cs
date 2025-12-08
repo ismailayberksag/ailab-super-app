@@ -120,74 +120,61 @@ namespace ailab_super_app.Controllers
             }
         }
 
-        /// <summary>
-        /// Get global lab occupancy and capacity statistics.
-        /// </summary>
-        [HttpGet("stats/global")]
-        public async Task<ActionResult<LabStatusDto>> GetGlobalLabStats()
-        {
-            try
+            /// <summary>
+            /// Get global lab occupancy and capacity statistics.
+            /// </summary>
+            [HttpGet("stats/global")]
+            public async Task<ActionResult<GlobalLabStatusDto>> GetGlobalLabStats()
             {
-                var stats = await _roomAccessService.GetGlobalLabStatusAsync();
-                return Ok(stats);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Get global lab stats error: {ex.Message}");
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Get lab usage statistics for the current user.
-        /// </summary>
-        [HttpGet("stats/me")]
-        public async Task<ActionResult<UserLabStatsDto>> GetMyLabStats()
-        {
-            try
-            {
-                var userId = GetCurrentUserId();
-                var stats = await _roomAccessService.GetUserLabStatsAsync(userId);
-                return Ok(stats);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError($"Get user lab stats error: {ex.Message}");
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        /// <summary>
-        /// Get lab occupancy statistics for current user's teammates.
-        /// </summary>
-        [HttpGet("stats/teammates")]
-        public async Task<ActionResult<LabStatusDto>> GetTeammateLabStats()
-        {
-            try
-            {
-                var userId = GetCurrentUserId();
-                var (teammatesInside, totalTeammates) = await _roomAccessService.GetTeammateLabStatusAsync(userId);
-                
-                // LabStatusDto'nun diğer alanlarını GetGlobalLabStatusAsync'ten alıp birleştirebiliriz
-                var globalStats = await _roomAccessService.GetGlobalLabStatusAsync();
-                
-                var result = new LabStatusDto
+                try
                 {
-                    CurrentOccupancyCount = globalStats.CurrentOccupancyCount,
-                    TotalCapacity = globalStats.TotalCapacity,
-                    TeammatesInsideCount = teammatesInside,
-                    TotalTeammatesCount = totalTeammates
-                };
-                
-                return Ok(result);
+                    var stats = await _roomAccessService.GetGlobalLabStatusAsync();
+                    return Ok(stats);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Get global lab stats error: {ex.Message}");
+                    return BadRequest(new { message = ex.Message });
+                }
             }
-            catch (Exception ex)
+        
+            /// <summary>
+            /// Get lab usage statistics for the current user.
+            /// </summary>
+            [HttpGet("stats/me")]
+            public async Task<ActionResult<UserLabStatsDto>> GetMyLabStats()
             {
-                _logger.LogError($"Get teammate lab stats error: {ex.Message}");
-                return BadRequest(new { message = ex.Message });
+                try
+                {
+                    var userId = GetCurrentUserId();
+                    var stats = await _roomAccessService.GetUserLabStatsAsync(userId);
+                    return Ok(stats);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Get user lab stats error: {ex.Message}");
+                    return BadRequest(new { message = ex.Message });
+                }
             }
-        }
-
+        
+            /// <summary>
+            /// Get lab occupancy statistics for current user's teammates.
+            /// </summary>
+            [HttpGet("stats/teammates")]
+            public async Task<ActionResult<TeammateLabStatusDto>> GetTeammateLabStats()
+            {
+                try
+                {
+                    var userId = GetCurrentUserId();
+                    var stats = await _roomAccessService.GetTeammateLabStatusAsync(userId);
+                    return Ok(stats);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Get teammate lab stats error: {ex.Message}");
+                    return BadRequest(new { message = ex.Message });
+                }
+            }
         private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
