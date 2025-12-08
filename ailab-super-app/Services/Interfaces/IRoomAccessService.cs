@@ -34,7 +34,7 @@ public interface IRoomAccessService
     /// <summary>
     /// Get global lab occupancy and capacity statistics.
     /// </summary>
-    Task<LabStatusDto> GetGlobalLabStatusAsync();
+    Task<GlobalLabStatusDto> GetGlobalLabStatusAsync();
 
     /// <summary>
     /// Get lab usage statistics for a specific user.
@@ -44,5 +44,5 @@ public interface IRoomAccessService
     /// <summary>
     /// Get statistics about teammates inside the lab for a specific user.
     /// </summary>
-    Task<(int TeammatesInsideCount, int TotalTeammatesCount)> GetTeammateLabStatusAsync(Guid userId);
+    Task<TeammateLabStatusDto> GetTeammateLabStatusAsync(Guid userId);
 }

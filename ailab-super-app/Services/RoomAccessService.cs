@@ -421,27 +421,31 @@ public class RoomAccessService : IRoomAccessService
         await _context.SaveChangesAsync();
     }
 
-    public async Task<LabStatusDto> GetGlobalLabStatusAsync()
+    public async Task<GlobalLabStatusDto> GetGlobalLabStatusAsync()
     {
         var labRoom = await _context.Rooms.FirstOrDefaultAsync(); // Varsayım: Tek bir Lab odası var
         if (labRoom == null) throw new Exception("Lab odası bulunamadı.");
 
-        // 1. İçerideki kişi sayısı
-        var currentOccupancy = await _context.LabCurrentOccupancy
+        // 1. İçerideki kişiler ve bilgileri
+        var currentOccupants = await _context.LabCurrentOccupancy
                                              .Where(o => o.RoomId == labRoom.Id)
-                                             .CountAsync();
+                                             .Include(o => o.User) // Kullanıcı bilgilerini çek
+                                             .ToListAsync();
+
+        var peopleInside = currentOccupants
+            .Select(o => o.User.FullName ?? o.User.UserName ?? "Bilinmeyen Kullanıcı")
+            .ToList();
 
         // 2. Toplam kapasite (aktif RFID kart sayısı)
         var totalCapacity = await _context.RfidCards
                                           .Where(rc => rc.IsActive && !rc.IsDeleted)
                                           .CountAsync();
 
-        return new LabStatusDto
+        return new GlobalLabStatusDto
         {
-            CurrentOccupancyCount = currentOccupancy,
+            CurrentOccupancyCount = currentOccupants.Count,
             TotalCapacity = totalCapacity,
-            TeammatesInsideCount = 0, // Bu metot global olduğu için sıfır kalır.
-            TotalTeammatesCount = 0   // Bu metot global olduğu için sıfır kalır.
+            PeopleInside = peopleInside
         };
     }
 
@@ -476,7 +480,7 @@ public class RoomAccessService : IRoomAccessService
         };
     }
 
-    public async Task<(int TeammatesInsideCount, int TotalTeammatesCount)> GetTeammateLabStatusAsync(Guid userId)
+    public async Task<TeammateLabStatusDto> GetTeammateLabStatusAsync(Guid userId)
     {
         // 1. Kullanıcının dahil olduğu tüm projelerin ID'lerini bul
         var userProjectIds = await _context.ProjectMembers
@@ -486,7 +490,7 @@ public class RoomAccessService : IRoomAccessService
 
         if (!userProjectIds.Any())
         {
-            return (0, 0); // Kullanıcı hiçbir projede değilse
+            return new TeammateLabStatusDto { TeammatesInsideCount = 0, TotalTeammatesCount = 0 };
         }
 
         // 2. Bu projelerdeki tüm tekil üyeleri (kendisi hariç) bul
@@ -500,14 +504,19 @@ public class RoomAccessService : IRoomAccessService
 
         if (!allTeammateUserIds.Any())
         {
-            return (0, 0); // Hiç takım arkadaşı yoksa
+            return new TeammateLabStatusDto { TeammatesInsideCount = 0, TotalTeammatesCount = 0 };
         }
 
         // 3. Labda olan takım arkadaşı sayısını bul
+        // Not: LabCurrentOccupancy tablosunda UserId varsa kişi içeridedir.
         var teammatesInsideCount = await _context.LabCurrentOccupancy
                                                   .Where(loc => allTeammateUserIds.Contains(loc.UserId))
                                                   .CountAsync();
 
-        return (teammatesInsideCount, allTeammateUserIds.Count);
+        return new TeammateLabStatusDto
+        {
+            TeammatesInsideCount = teammatesInsideCount,
+            TotalTeammatesCount = allTeammateUserIds.Count
+        };
     }
 }
