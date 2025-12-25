@@ -153,9 +153,9 @@ namespace ailab_super_app.Data
             {
                 e.ToTable("lab_entries");
                 e.HasKey(x => x.Id);
-                e.Property(x => x.EntryType).HasConversion<string>();
-                e.Property(x => x.CardUid).HasMaxLength(50);
-
+                // EntryType kaldırıldı
+                // CardUid kaldırıldı
+                
                 e.HasIndex(x => new { x.UserId, x.EntryTime });
                 e.HasIndex(x => x.EntryTime);
 
@@ -392,36 +392,7 @@ namespace ailab_super_app.Data
                 e.Property(x => x.UpdatedAt).IsRequired(false);
             });
 
-            b.Entity<RoomAccess>(e =>
-            {
-                e.ToTable("room_accesses");
-                e.HasKey(x => x.Id);
-                e.Property(x => x.Direction).HasConversion<string>();
-                e.Property(x => x.DenyReason).HasMaxLength(200);
-
-                e.HasIndex(x => new { x.RoomId, x.AccessedAt });
-                e.HasIndex(x => new { x.UserId, x.AccessedAt });
-
-                e.HasOne(x => x.Room)
-                 .WithMany()
-                 .HasForeignKey(x => x.RoomId)
-                 .OnDelete(DeleteBehavior.Cascade);
-
-                e.HasOne(x => x.RfidCard)
-                 .WithMany()
-                 .HasForeignKey(x => x.RfidCardId)
-                 .OnDelete(DeleteBehavior.Cascade);
-
-                e.HasOne(x => x.User)
-                 .WithMany()
-                 .HasForeignKey(x => x.UserId)
-                 .OnDelete(DeleteBehavior.SetNull);
-
-                e.HasOne(x => x.CreatedEntry)
-                 .WithMany()
-                 .HasForeignKey(x => x.CreatedEntryId)
-                 .OnDelete(DeleteBehavior.SetNull);
-            });
+            // RoomAccess silindi
 
             // Announcements (mevcut konfigürasyonu koru)
             b.Entity<Announcement>(e =>

@@ -8,9 +8,7 @@ public class LabEntry
 
     public Guid UserId { get; set; }
 
-    public string? CardUid { get; set; }
-
-    public EntryType EntryType { get; set; }
+    public string? ReaderUid { get; set; }
 
     public DateTime EntryTime { get; set; } = DateTime.UtcNow;
 

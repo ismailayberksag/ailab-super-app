@@ -23,12 +23,6 @@ public enum ReportStatus
     Revision
 }
 
-public enum EntryType
-{
-    Entry,
-    Exit
-}
-
 public enum UserStatus
 {
     Active,
