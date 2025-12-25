@@ -15,7 +15,6 @@ namespace ailab_super_app.Data
         public DbSet<ProjectMember> ProjectMembers { get; set; }
         public DbSet<TaskItem> Tasks { get; set; }
         public DbSet<Room> Rooms { get; set; }
-        public DbSet<RoomAccess> RoomAccesses { get; set; }
         public DbSet<Report> Reports { get; set; }
         public DbSet<Announcement> Announcements { get; set; }
         public DbSet<RfidCard> RfidCards { get; set; }
