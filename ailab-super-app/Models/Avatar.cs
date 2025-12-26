@@ -22,5 +22,5 @@ public class Avatar
 
     public bool IsSystemDefault { get; set; } = false;
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 }

@@ -10,7 +10,7 @@ public class LabEntry
 
     public string? ReaderUid { get; set; }
 
-    public DateTime EntryTime { get; set; } = DateTime.UtcNow;
+    public DateTime EntryTime { get; set; }
 
     public DateTime? ExitTime { get; set; } // Çıkış zamanı
 

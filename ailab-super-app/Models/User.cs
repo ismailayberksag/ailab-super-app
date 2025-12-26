@@ -29,9 +29,9 @@ public class User : IdentityUser<Guid>
 
     public int TotalScore { get; set; } = 0;
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; }
 
     // Navigation Properties
     public virtual ICollection<UserRole> UserRoles { get; set; } = new List<UserRole>();

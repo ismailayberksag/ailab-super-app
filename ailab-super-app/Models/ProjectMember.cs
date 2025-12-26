@@ -11,7 +11,7 @@ public class ProjectMember
     public User User { get; set; } = default!;
 
     public string Role { get; set; } = "Member";
-    public DateTime AddedAt { get; set; } = DateTime.UtcNow;
+    public DateTime AddedAt { get; set; }
 
     public bool IsDeleted { get; set; } = false;
     public DateTime? DeletedAt { get; set; }

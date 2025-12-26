@@ -14,7 +14,7 @@ public class UserAvatar
     [ForeignKey("Avatar")]
     public Guid AvatarId { get; set; }
 
-    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; }
 
     // Navigation Properties
     public virtual User User { get; set; } = null!;

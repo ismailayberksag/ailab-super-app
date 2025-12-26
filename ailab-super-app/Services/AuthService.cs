@@ -1,7 +1,8 @@
-﻿using ailab_super_app.Data;
+using ailab_super_app.Data;
 using ailab_super_app.DTOs.Auth;
 using ailab_super_app.Models;
 using ailab_super_app.Configuration;
+using ailab_super_app.Helpers; // GetTurkeyTime için eklendi
 using ailab_super_app.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -32,7 +33,8 @@ namespace ailab_super_app.Services
 
         public async Task<LoginResponseDto> RegisterAsync(RegisterRequestDto request, string ipAddress)
         {
-            //Email Kontrolü
+            var now = DateTimeHelper.GetTurkeyTime();
+
             if (await _userManager.FindByEmailAsync(request.Email) != null)
             {
                 throw new Exception("Bu email adresi zaten kullanılıyor!");
@@ -48,12 +50,11 @@ namespace ailab_super_app.Services
                 Email = request.Email,
                 FullName = request.FullName,
                 Phone = request.PhoneNumber,
-                PhoneNumber = request.PhoneNumber, // Identity alanını da doldur (senkronize)
-                SchoolNumber = request.SchoolNumber,// yeni alan
+                PhoneNumber = request.PhoneNumber,
+                SchoolNumber = request.SchoolNumber,
                 Status = UserStatus.Active,
-                CreatedAt = DateTime.UtcNow,
-                UpdatedAt = DateTime.UtcNow,
-                // Varsayılan avatar
+                CreatedAt = now,
+                UpdatedAt = now,
                 ProfileImageUrl = "https://firebasestorage.googleapis.com/v0/b/ailab-super-app.firebasestorage.app/o/default.webp?alt=media"
             };
 
@@ -65,7 +66,6 @@ namespace ailab_super_app.Services
                 throw new Exception($"Kullanıcı oluşturulamadı: {errors}");
             }
 
-            // Varsayılan rol ata: Member
             var roleAssignResult = await _userManager.AddToRoleAsync(user, "Member");
             if (!roleAssignResult.Succeeded)
             {
@@ -73,37 +73,33 @@ namespace ailab_super_app.Services
                 throw new Exception($"Varsayılan rol atanamadı (Member): {errors}");
             }
 
-            //login response dön
             return await GenerateLoginResponse(user, ipAddress);
         }
 
         public async Task<LoginResponseDto> LoginAsync(LoginRequestDto request, string ipAddress)
         {
-            //email veya username ile kullanıcı bul
             var user = await _userManager.FindByEmailAsync(request.EmailOrUsername)
                 ?? await _userManager.FindByNameAsync(request.EmailOrUsername);
 
             if (user == null)
                 throw new Exception("Kullanıcı adı veya şifre hatalı");
 
-            //soft delete butonu
             if (user.IsDeleted)
                 throw new Exception("Kullanıcı bulunamadı");
 
-            //status kontrolü
             if (user.Status != UserStatus.Active)
                 throw new Exception("Kullanıcı aktif değil");
 
-            //şifre kontrolü
             var passwordValid = await _userManager.CheckPasswordAsync(user, request.Password);
             if (!passwordValid)
                 throw new Exception("Kullanıcı adı veya şifre hatalı");
 
-            //Login response dön
             return await GenerateLoginResponse(user, ipAddress);
         }
+
         public async Task<LoginResponseDto> RefreshTokenAsync(string refreshToken, string ipAddress)
         {
+            var now = DateTimeHelper.GetTurkeyTime();
             var existingToken = await _context.RefreshTokens
                 .Include(rt => rt.User)
                 .FirstOrDefaultAsync(rt => rt.Token == refreshToken);
@@ -114,31 +110,28 @@ namespace ailab_super_app.Services
             if (existingToken.IsRevoked)
                 throw new Exception("Refresh token iptal edilmiş");
 
-            if (existingToken.ExpiresAt < DateTime.UtcNow)
+            if (existingToken.ExpiresAt < now)
                 throw new Exception("Refresh token süresi dolmuş");
 
-            // Soft delete kontrolü
             if (existingToken.User.IsDeleted)
                 throw new Exception("Bu hesap silinmiş");
 
-            // Eski token'ı iptal et
             existingToken.IsRevoked = true;
-            existingToken.RevokedAt = DateTime.UtcNow;
+            existingToken.RevokedAt = now;
             existingToken.RevokedByIp = ipAddress;
 
-            // Yeni token oluştur
             var newRefreshToken = GenerateRefreshToken(ipAddress);
             newRefreshToken.ReplacedByToken = existingToken.Token;
             existingToken.ReplacedByToken = newRefreshToken.Token;
 
             await _context.SaveChangesAsync();
 
-            // Yeni login response döndür
             return await GenerateLoginResponse(existingToken.User, ipAddress);
         }
 
         public async Task RevokeTokenAsync(string refreshToken, string ipAddress)
         {
+            var now = DateTimeHelper.GetTurkeyTime();
             var token = await _context.RefreshTokens
                 .FirstOrDefaultAsync(rt => rt.Token == refreshToken);
 
@@ -149,7 +142,7 @@ namespace ailab_super_app.Services
                 throw new Exception("Refresh token zaten iptal edilmiş");
 
             token.IsRevoked = true;
-            token.RevokedAt = DateTime.UtcNow;
+            token.RevokedAt = now;
             token.RevokedByIp = ipAddress;
 
             await _context.SaveChangesAsync();
@@ -157,10 +150,11 @@ namespace ailab_super_app.Services
 
         public async Task<bool> ValidateRefreshTokenAsync(string refreshToken)
         {
+            var now = DateTimeHelper.GetTurkeyTime();
             var token = await _context.RefreshTokens
                 .FirstOrDefaultAsync(rt => rt.Token == refreshToken);
 
-            if (token == null || token.IsRevoked || token.ExpiresAt < DateTime.UtcNow)
+            if (token == null || token.IsRevoked || token.ExpiresAt < now)
                 return false;
 
             return true;
@@ -169,35 +163,36 @@ namespace ailab_super_app.Services
         #region Private Methods
         private async Task<LoginResponseDto> GenerateLoginResponse(User user, string ipAddress)
         {
+            var now = DateTimeHelper.GetTurkeyTime();
             var accessToken = await GenerateAccessToken(user);
             var refreshToken = GenerateRefreshToken(ipAddress);
 
-            // Refresh token'ı kaydet
             refreshToken.UserId = user.Id;
             _context.RefreshTokens.Add(refreshToken);
             await _context.SaveChangesAsync();
 
-            // Kullanıcı rollerini al
             var roles = await _userManager.GetRolesAsync(user);
 
             return new LoginResponseDto
             {
                 Token = accessToken,
                 RefreshToken = refreshToken.Token,
-                ExpiresAt = DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
+                ExpiresAt = now.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
                 User = new UserInfoDto
                 {
                     Id = user.Id,
                     UserName = user.UserName!,
                     Email = user.Email!,
                     FullName = user.FullName,
-                    ProfileImageUrl = user.ProfileImageUrl, // Doğrudan property
+                    ProfileImageUrl = user.ProfileImageUrl,
                     Roles = roles.ToList()
                 }
             };
         }
+
         private async Task<string> GenerateAccessToken(User user)
         {
+            var now = DateTimeHelper.GetTurkeyTime();
             var roles = await _userManager.GetRolesAsync(user);
 
             var claims = new List<Claim>
@@ -208,11 +203,11 @@ namespace ailab_super_app.Services
                 new Claim("FullName", user.FullName ?? ""),
             };
 
-            //rolleri claim olarak ekle
             foreach (var role in roles)
             {
                 claims.Add(new Claim(ClaimTypes.Role, role));
             }
+
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Secret));
             var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
@@ -220,19 +215,21 @@ namespace ailab_super_app.Services
                 issuer: _jwtSettings.Issuer,
                 audience: _jwtSettings.Audience,
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
+                expires: now.AddMinutes(_jwtSettings.AccessTokenExpirationMinutes),
                 signingCredentials: credentials
             );
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
         private RefreshToken GenerateRefreshToken(string ipAddress)
         {
+            var now = DateTimeHelper.GetTurkeyTime();
             return new RefreshToken
             {
                 Token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)),
-                ExpiresAt = DateTime.UtcNow.AddDays(_jwtSettings.RefreshTokenExpirationDays),
-                CreatedAt = DateTime.UtcNow,
+                ExpiresAt = now.AddDays(_jwtSettings.RefreshTokenExpirationDays),
+                CreatedAt = now,
                 CreatedByIp = ipAddress
             };
         }

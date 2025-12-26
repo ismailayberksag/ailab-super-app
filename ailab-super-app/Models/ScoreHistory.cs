@@ -16,7 +16,7 @@ public class ScoreHistory
 
     public Guid? CreatedBy { get; set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
     // Navigation Property
     public User User { get; set; } = default!;

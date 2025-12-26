@@ -10,7 +10,7 @@ public class ButtonPressLog
 
     public string ButtonUid { get; set; } = default!;  // Butonun fiziksel UUID/MAC adresi
 
-    public DateTime PressedAt { get; set; } = DateTime.UtcNow;
+    public DateTime PressedAt { get; set; }
 
     public bool Success { get; set; }  // İşlem başarılı mı?
 

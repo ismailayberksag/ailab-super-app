@@ -11,7 +11,7 @@ public class Announcement
     public AnnouncementScope Scope { get; set; } = AnnouncementScope.Global;
 
     public Guid CreatedBy { get; set; }
-    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
     // Navigation properties
     public List<AnnouncementProject> TargetProjects { get; set; } = [];

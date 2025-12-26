@@ -8,7 +8,7 @@ public class DoorState
     
     public bool IsOpen { get; set; } = false;
     
-    public DateTime LastUpdatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime LastUpdatedAt { get; set; }
     
     // Navigation Property
     public Room Room { get; set; } = default!;

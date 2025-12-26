@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using ailab_super_app.Data;
+using ailab_super_app.Helpers; // GetTurkeyTime için eklendi
 using ailab_super_app.Models;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -48,7 +49,7 @@ namespace ailab_super_app.Services.Background
 
         private async Task PerformAutoCheckoutAsync(AppDbContext dbContext)
         {
-            var now = DateTime.UtcNow;
+            var now = DateTimeHelper.GetTurkeyTime();
             
             // Açık oturumları bul (ExitTime == null)
             var staleSessions = await dbContext.LabEntries

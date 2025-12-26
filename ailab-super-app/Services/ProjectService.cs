@@ -1,7 +1,7 @@
 using ailab_super_app.Common.Exceptions;
 using ailab_super_app.Data;
 using ailab_super_app.DTOs.Project;
-using ailab_super_app.Helpers;
+using ailab_super_app.Helpers; // GetTurkeyTime için eklendi
 using ailab_super_app.Models;
 using ailab_super_app.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
@@ -65,7 +65,6 @@ public class ProjectService : IProjectService
                 createdByName = creator?.FullName ?? creator?.UserName;
             }
 
-            // Truncate description to 100 chars
             var description = project.Description?.Length > 100
                 ? project.Description.Substring(0, 100) + "..."
                 : project.Description;
@@ -98,21 +97,14 @@ public class ProjectService : IProjectService
         var project = await _context.Projects
             .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted);
 
-        if (project == null)
-        {
-            throw new NotFoundException("Proje bulunamadı");
-        }
+        if (project == null) throw new NotFoundException("Proje bulunamadı");
 
-        // Check access: Admin or Project Member
         if (requestingUserId.HasValue)
         {
             var isAdmin = await IsAdminAsync(requestingUserId.Value);
             var isMember = await IsMemberAsync(projectId, requestingUserId.Value);
 
-            if (!isAdmin && !isMember)
-            {
-                throw new UnauthorizedAccessException("Bu projeye erişim yetkiniz yok");
-            }
+            if (!isAdmin && !isMember) throw new UnauthorizedAccessException("Bu projeye erişim yetkiniz yok");
         }
 
         return await MapToProjectDto(project);
@@ -120,13 +112,14 @@ public class ProjectService : IProjectService
 
     public async Task<ProjectDto> CreateProjectAsync(CreateProjectDto dto, Guid createdBy)
     {
+        var now = DateTimeHelper.GetTurkeyTime();
         var project = new Project
         {
             Name = dto.Name,
             Description = dto.Description,
             CreatedBy = createdBy,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            CreatedAt = now,
+            UpdatedAt = now
         };
 
         _context.Projects.Add(project);
@@ -137,41 +130,23 @@ public class ProjectService : IProjectService
 
     public async Task<ProjectDto> UpdateProjectAsync(Guid projectId, UpdateProjectDto dto, Guid requestingUserId)
     {
+        var now = DateTimeHelper.GetTurkeyTime();
         var project = await _context.Projects
             .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted);
 
-        if (project == null)
-        {
-            throw new NotFoundException("Proje bulunamadı");
-        }
+        if (project == null) throw new NotFoundException("Proje bulunamadı");
 
-        // Check access: Admin or Captain
         var isAdmin = await IsAdminAsync(requestingUserId);
         var isCaptain = await IsCaptainAsync(projectId, requestingUserId);
 
-        if (!isAdmin && !isCaptain)
-        {
-            throw new UnauthorizedAccessException("Bu işlem için Captain yetkisi gerekli");
-        }
+        if (!isAdmin && !isCaptain) throw new UnauthorizedAccessException("Bu işlem için Captain yetkisi gerekli");
 
-        // Validate at least one field is provided
-        if (dto.Name == null && dto.Description == null)
-        {
-            throw new BadRequestException("En az bir alan güncellenmelidir");
-        }
+        if (dto.Name == null && dto.Description == null) throw new BadRequestException("En az bir alan güncellenmelidir");
 
-        // Update fields
-        if (dto.Name != null)
-        {
-            project.Name = dto.Name;
-        }
+        if (dto.Name != null) project.Name = dto.Name;
+        if (dto.Description != null) project.Description = dto.Description;
 
-        if (dto.Description != null)
-        {
-            project.Description = dto.Description;
-        }
-
-        project.UpdatedAt = DateTime.UtcNow;
+        project.UpdatedAt = now;
 
         await _context.SaveChangesAsync();
 
@@ -180,29 +155,22 @@ public class ProjectService : IProjectService
 
     public async Task DeleteProjectAsync(Guid projectId, Guid deletedBy)
     {
+        var now = DateTimeHelper.GetTurkeyTime();
         var project = await _context.Projects
             .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted);
 
-        if (project == null)
-        {
-            throw new NotFoundException("Proje bulunamadı");
-        }
+        if (project == null) throw new NotFoundException("Proje bulunamadı");
 
-        // Check for active tasks
         var hasActiveTasks = await _context.Tasks
             .AnyAsync(t => t.ProjectId == projectId
                         && t.Status != TaskStatus.Done
                         && t.Status != TaskStatus.Cancelled
                         && !t.IsDeleted);
 
-        if (hasActiveTasks)
-        {
-            throw new BadRequestException("Proje aktif tasklar içerdiği için silinemez. Önce taskları tamamlayın veya iptal edin");
-        }
+        if (hasActiveTasks) throw new BadRequestException("Proje aktif tasklar içerdiği için silinemez.");
 
-        // Soft delete
         project.IsDeleted = true;
-        project.DeletedAt = DateTime.UtcNow;
+        project.DeletedAt = now;
         project.DeletedBy = deletedBy;
 
         await _context.SaveChangesAsync();
@@ -213,21 +181,14 @@ public class ProjectService : IProjectService
         var project = await _context.Projects
             .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted);
 
-        if (project == null)
-        {
-            throw new NotFoundException("Proje bulunamadı");
-        }
+        if (project == null) throw new NotFoundException("Proje bulunamadı");
 
-        // Check access: Admin or Project Member
         if (requestingUserId.HasValue)
         {
             var isAdmin = await IsAdminAsync(requestingUserId.Value);
             var isMember = await IsMemberAsync(projectId, requestingUserId.Value);
 
-            if (!isAdmin && !isMember)
-            {
-                throw new UnauthorizedAccessException("Bu projeye erişim yetkiniz yok");
-            }
+            if (!isAdmin && !isMember) throw new UnauthorizedAccessException("Bu projeye erişim yetkiniz yok");
         }
 
         var members = await _context.ProjectMembers
@@ -249,56 +210,35 @@ public class ProjectService : IProjectService
 
     public async Task<ProjectMemberDto> AddMemberAsync(Guid projectId, AddProjectMemberDto dto, Guid addedBy)
     {
+        var now = DateTimeHelper.GetTurkeyTime();
         var project = await _context.Projects
             .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted);
 
-        if (project == null)
-        {
-            throw new NotFoundException("Proje bulunamadı");
-        }
+        if (project == null) throw new NotFoundException("Proje bulunamadı");
 
-        // Check access: Admin or Captain
         var isAdmin = await IsAdminAsync(addedBy);
         var isCaptain = await IsCaptainAsync(projectId, addedBy);
 
-        if (!isAdmin && !isCaptain)
-        {
-            throw new UnauthorizedAccessException("Bu işlem için Captain yetkisi gerekli");
-        }
+        if (!isAdmin && !isCaptain) throw new UnauthorizedAccessException("Bu işlem için Captain yetkisi gerekli");
 
-        // Validate role
-        if (dto.Role != "Captain" && dto.Role != "Member")
-        {
-            throw new BadRequestException("Role 'Captain' veya 'Member' olmalıdır");
-        }
+        if (dto.Role != "Captain" && dto.Role != "Member") throw new BadRequestException("Role 'Captain' veya 'Member' olmalıdır");
 
-        // Check if user exists and is active
         var user = await _userManager.FindByIdAsync(dto.UserId.ToString());
-        if (user == null || user.IsDeleted)
-        {
-            throw new NotFoundException("Kullanıcı bulunamadı");
-        }
+        if (user == null || user.IsDeleted) throw new NotFoundException("Kullanıcı bulunamadı");
 
-        if (user.Status != UserStatus.Active)
-        {
-            throw new BadRequestException("Aktif olmayan kullanıcı projeye eklenemez");
-        }
+        if (user.Status != UserStatus.Active) throw new BadRequestException("Aktif olmayan kullanıcı projeye eklenemez");
 
-        // Check if user is already a member
         var existingMember = await _context.ProjectMembers
             .FirstOrDefaultAsync(pm => pm.ProjectId == projectId && pm.UserId == dto.UserId && !pm.IsDeleted);
 
-        if (existingMember != null)
-        {
-            throw new ConflictException("Kullanıcı zaten bu projede mevcut");
-        }
+        if (existingMember != null) throw new ConflictException("Kullanıcı zaten bu projede mevcut");
 
         var member = new ProjectMember
         {
             ProjectId = projectId,
             UserId = dto.UserId,
             Role = dto.Role,
-            AddedAt = DateTime.UtcNow
+            AddedAt = now
         };
 
         _context.ProjectMembers.Add(member);
@@ -318,55 +258,37 @@ public class ProjectService : IProjectService
 
     public async Task RemoveMemberAsync(Guid projectId, Guid userId, Guid removedBy)
     {
+        var now = DateTimeHelper.GetTurkeyTime();
         var project = await _context.Projects
             .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted);
 
-        if (project == null)
-        {
-            throw new NotFoundException("Proje bulunamadı");
-        }
+        if (project == null) throw new NotFoundException("Proje bulunamadı");
 
-        // Check access: Admin or Captain
         var isAdmin = await IsAdminAsync(removedBy);
         var isCaptain = await IsCaptainAsync(projectId, removedBy);
 
-        if (!isAdmin && !isCaptain)
-        {
-            throw new UnauthorizedAccessException("Bu işlem için Captain yetkisi gerekli");
-        }
+        if (!isAdmin && !isCaptain) throw new UnauthorizedAccessException("Bu işlem için Captain yetkisi gerekli");
 
         var member = await _context.ProjectMembers
             .FirstOrDefaultAsync(pm => pm.ProjectId == projectId && pm.UserId == userId && !pm.IsDeleted);
 
-        if (member == null)
-        {
-            throw new NotFoundException("Üye bulunamadı");
-        }
+        if (member == null) throw new NotFoundException("Üye bulunamadı");
 
-        // Check if member has assigned tasks
         var hasAssignedTasks = await _context.Tasks
             .AnyAsync(t => t.ProjectId == projectId && t.AssigneeId == userId && !t.IsDeleted);
 
-        if (hasAssignedTasks)
-        {
-            throw new BadRequestException("Üyenin atanmış taskları var. Önce taskları yeniden atayın veya iptal edin");
-        }
+        if (hasAssignedTasks) throw new BadRequestException("Üyenin atanmış taskları var.");
 
-        // Check if removing last captain
         if (member.Role == "Captain")
         {
             var captainCount = await _context.ProjectMembers
                 .CountAsync(pm => pm.ProjectId == projectId && pm.Role == "Captain" && !pm.IsDeleted);
 
-            if (captainCount <= 1)
-            {
-                throw new BadRequestException("Son Captain kaldırılamaz");
-            }
+            if (captainCount <= 1) throw new BadRequestException("Son Captain kaldırılamaz");
         }
 
-        // Soft delete
         member.IsDeleted = true;
-        member.DeletedAt = DateTime.UtcNow;
+        member.DeletedAt = now;
         member.DeletedBy = removedBy;
 
         await _context.SaveChangesAsync();
@@ -377,44 +299,25 @@ public class ProjectService : IProjectService
         var project = await _context.Projects
             .FirstOrDefaultAsync(p => p.Id == projectId && !p.IsDeleted);
 
-        if (project == null)
-        {
-            throw new NotFoundException("Proje bulunamadı");
-        }
+        if (project == null) throw new NotFoundException("Proje bulunamadı");
 
-        // Only Admin can update roles (Captain assignment)
         var isAdmin = await IsAdminAsync(updatedBy);
+        if (!isAdmin) throw new UnauthorizedAccessException("Sadece Admin rol değiştirebilir");
 
-        if (!isAdmin)
-        {
-            throw new UnauthorizedAccessException("Sadece Admin rol değiştirebilir");
-        }
-
-        // Validate role
-        if (dto.Role != "Captain" && dto.Role != "Member")
-        {
-            throw new BadRequestException("Role 'Captain' veya 'Member' olmalıdır");
-        }
+        if (dto.Role != "Captain" && dto.Role != "Member") throw new BadRequestException("Role 'Captain' veya 'Member' olmalıdır");
 
         var member = await _context.ProjectMembers
             .Include(pm => pm.User)
             .FirstOrDefaultAsync(pm => pm.ProjectId == projectId && pm.UserId == userId && !pm.IsDeleted);
 
-        if (member == null)
-        {
-            throw new NotFoundException("Üye bulunamadı");
-        }
+        if (member == null) throw new NotFoundException("Üye bulunamadı");
 
-        // Check if demoting last captain
         if (member.Role == "Captain" && dto.Role == "Member")
         {
             var captainCount = await _context.ProjectMembers
                 .CountAsync(pm => pm.ProjectId == projectId && pm.Role == "Captain" && !pm.IsDeleted);
 
-            if (captainCount <= 1)
-            {
-                throw new BadRequestException("Son Captain Member yapılamaz");
-            }
+            if (captainCount <= 1) throw new BadRequestException("Son Captain Member yapılamaz");
         }
 
         member.Role = dto.Role;
@@ -439,22 +342,18 @@ public class ProjectService : IProjectService
             .Include(pm => pm.Project)
             .AsQueryable();
 
-        // Apply role filter if provided
         if (!string.IsNullOrEmpty(roleFilter))
         {
             query = query.Where(pm => pm.Role == roleFilter);
         }
 
         var memberships = await query.ToListAsync();
-
         var projectListDtos = new List<ProjectListDto>();
 
         foreach (var membership in memberships)
         {
             var project = membership.Project;
-
-            if (project.IsDeleted)
-                continue;
+            if (project.IsDeleted) continue;
 
             var members = await _context.ProjectMembers
                 .Where(pm => pm.ProjectId == project.Id && !pm.IsDeleted)
@@ -476,7 +375,6 @@ public class ProjectService : IProjectService
                 createdByName = creator?.FullName ?? creator?.UserName;
             }
 
-            // Truncate description
             var description = project.Description?.Length > 100
                 ? project.Description.Substring(0, 100) + "..."
                 : project.Description;
@@ -590,4 +488,3 @@ public class ProjectService : IProjectService
 
     #endregion
 }
-

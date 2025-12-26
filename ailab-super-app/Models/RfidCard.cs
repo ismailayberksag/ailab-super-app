@@ -12,7 +12,7 @@ public class RfidCard
 
     public Guid? RegisteredBy { get; set; }
 
-    public DateTime RegisteredAt { get; set; } = DateTime.UtcNow;
+    public DateTime RegisteredAt { get; set; }
 
     public DateTime? LastUsed { get; set; }
 

@@ -1,7 +1,7 @@
 using ailab_super_app.Data;
 using ailab_super_app.DTOs.Statistics;
 using ailab_super_app.DTOs.User;
-using ailab_super_app.Helpers;
+using ailab_super_app.Helpers; // GetTurkeyTime için eklendi
 using ailab_super_app.Models;
 using ailab_super_app.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
@@ -95,6 +95,7 @@ namespace ailab_super_app.Services
 
         public async Task<UserDto> UpdateUserAsync(Guid userId, UpdateUserDto dto)
         {
+            var now = DateTimeHelper.GetTurkeyTime();
             var user = await _userManager.FindByIdAsync(userId.ToString());
 
             if (user == null || user.IsDeleted)
@@ -108,7 +109,7 @@ namespace ailab_super_app.Services
                 user.PhoneNumber = dto.Phone;
             }
 
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = now;
 
             var result = await _userManager.UpdateAsync(user);
 
@@ -123,6 +124,7 @@ namespace ailab_super_app.Services
 
         public async Task<UserDto> UpdateUserStatusAsync(Guid userId, UpdateUserStatusDto dto)
         {
+            var now = DateTimeHelper.GetTurkeyTime();
             var user = await _userManager.FindByIdAsync(userId.ToString());
 
             if (user == null || user.IsDeleted)
@@ -131,7 +133,7 @@ namespace ailab_super_app.Services
             }
 
             user.Status = dto.Status;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = now;
 
             var result = await _userManager.UpdateAsync(user);
 
@@ -146,6 +148,7 @@ namespace ailab_super_app.Services
 
         public async Task DeleteUserAsync(Guid userId, Guid deletedBy)
         {
+            var now = DateTimeHelper.GetTurkeyTime();
             var user = await _userManager.FindByIdAsync(userId.ToString());
 
             if (user == null || user.IsDeleted)
@@ -153,11 +156,10 @@ namespace ailab_super_app.Services
                 throw new Exception("Kullanıcı bulunamadı");
             }
 
-            // Soft delete
             user.IsDeleted = true;
-            user.DeletedAt = DateTime.UtcNow;
+            user.DeletedAt = now;
             user.DeletedBy = deletedBy;
-            user.UpdatedAt = DateTime.UtcNow;
+            user.UpdatedAt = now;
 
             var result = await _userManager.UpdateAsync(user);
 

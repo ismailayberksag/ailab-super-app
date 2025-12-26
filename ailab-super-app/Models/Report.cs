@@ -14,7 +14,7 @@ public class Report
     public DateTime? PeriodStart { get; set; }
     public DateTime? PeriodEnd { get; set; }
 
-    public DateTime SubmittedAt { get; set; } = DateTime.UtcNow;
+    public DateTime SubmittedAt { get; set; }
 
     public ReportStatus Status { get; set; } = ReportStatus.Pending;
 
