@@ -16,6 +16,7 @@ public class TaskItem
 
     // Kime atandı
     public Guid AssigneeId { get; set; }
+    public User? User { get; set; } // Navigasyon özelliği eklendi
 
     // Kim oluşturdu
     public Guid CreatedBy { get; set; }

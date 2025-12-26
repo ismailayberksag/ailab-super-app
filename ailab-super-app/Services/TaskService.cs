@@ -35,7 +35,7 @@ public class TaskService : ITaskService
             .Skip((paginationParams.PageNumber - 1) * paginationParams.PageSize)
             .Take(paginationParams.PageSize)
             .Include(t => t.Project)
-            .Include(t => t.User) // AssigneeName için User'ı include et
+            .Include(t => t.User) // Modelde artik var
             .ToListAsync();
 
         var taskDtos = tasks.Select(t => new TaskListDto
@@ -85,7 +85,7 @@ public class TaskService : ITaskService
         var tasks = await query
             .OrderByDescending(t => t.CreatedAt)
             .Include(t => t.Project)
-            .Include(t => t.User) // AssigneeName için include
+            .Include(t => t.User) // Modelde artik var
             .ToListAsync();
 
         return tasks.Select(t => new TaskListDto

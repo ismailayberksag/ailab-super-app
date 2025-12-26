@@ -4,7 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using ailab_super_app.Data;
 using ailab_super_app.DTOs.Announcement;
-using ailab_super_app.Helpers; // GetTurkeyTime için eklendi
+using ailab_super_app.Helpers; 
 using ailab_super_app.Models;
 using ailab_super_app.Models.Enums;
 using ailab_super_app.Services.Interfaces;
@@ -34,9 +34,9 @@ namespace ailab_super_app.Services
                 CreatedAt = now
             };
 
-            if (dto.Scope == AnnouncementScope.Project && dto.ProjectIds != null)
+            if (dto.Scope == AnnouncementScope.Project && dto.TargetProjectIds != null)
             {
-                foreach (var projectId in dto.ProjectIds)
+                foreach (var projectId in dto.TargetProjectIds)
                 {
                     announcement.TargetProjects.Add(new AnnouncementProject
                     {
@@ -45,9 +45,9 @@ namespace ailab_super_app.Services
                     });
                 }
             }
-            else if (dto.Scope == AnnouncementScope.Individual && dto.UserIds != null)
+            else if (dto.Scope == AnnouncementScope.Individual && dto.TargetUserIds != null)
             {
-                foreach (var userId in dto.UserIds)
+                foreach (var userId in dto.TargetUserIds)
                 {
                     announcement.TargetUsers.Add(new AnnouncementUser
                     {
@@ -65,24 +65,18 @@ namespace ailab_super_app.Services
 
         public async Task<PagedResult<AnnouncementListDto>> GetMyAnnouncementsAsync(Guid userId, PaginationParams pagination, bool? isRead = null)
         {
-            // Kullanıcının dahil olduğu projeleri bul
             var userProjectIds = await _context.ProjectMembers
                 .Where(pm => pm.UserId == userId && !pm.IsDeleted)
                 .Select(pm => pm.ProjectId)
                 .ToListAsync();
 
-            // Duyuruları filtrele
             var query = _context.Announcements
                 .AsNoTracking()
                 .Where(a => !a.IsDeleted && (
                     a.Scope == AnnouncementScope.Global ||
-                    (a.Scope == AnnouncementScope.Project && a.TargetProjects.Any(tp => userProjectIds.Contains(pm => tp.ProjectId))) ||
+                    (a.Scope == AnnouncementScope.Project && a.TargetProjects.Any(tp => userProjectIds.Contains(tp.ProjectId))) ||
                     (a.Scope == AnnouncementScope.Individual && a.TargetUsers.Any(tu => tu.UserId == userId))
                 ));
-
-            // Okunma durumu filtresi (Individual için anlamlı)
-            // Not: Global ve Project duyuruları için IsRead mantığı farklı kurgulanabilir. 
-            // Şimdilik sadece Individual için olan IsRead'e bakıyoruz.
 
             var totalCount = await query.CountAsync();
             var items = await query
