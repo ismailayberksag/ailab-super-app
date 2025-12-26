@@ -54,3 +54,19 @@ public enum PeriodType
     Annual,
     Custom
 }
+
+public enum BugType
+{
+    VisualError = 1,        // UI / Görsel Hata
+    FunctionalError = 2,    // İş Akışı / Fonksiyonel Hata
+    PerformanceIssue = 3,   // Performans Problemi
+    CrashOrFreeze = 4,      // Çökme / Donma
+    AuthorizationIssue = 5, // Yetkilendirme / Erişim Problemi
+    Other = 99              // Diğer
+}
+
+public enum PlatformType
+{
+    Web = 1,
+    Mobile = 2
+}
