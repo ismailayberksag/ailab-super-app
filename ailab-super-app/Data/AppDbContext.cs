@@ -329,7 +329,7 @@ namespace ailab_super_app.Data
                 e.HasIndex(x => new { x.ProjectId, x.Status });
                 e.HasIndex(x => x.DueDate);
 
-                e.HasOne<User>()
+                e.HasOne(x => x.User)
                  .WithMany(u => u.AssignedTasks)
                  .HasForeignKey(x => x.AssigneeId)
                  .OnDelete(DeleteBehavior.Cascade);
