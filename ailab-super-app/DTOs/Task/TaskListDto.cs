@@ -7,8 +7,11 @@ public class TaskListDto
     public Guid Id { get; set; }
     public string Title { get; set; } = default!;
     public TaskStatus Status { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public Guid AssigneeId { get; set; }
     public string? AssigneeName { get; set; }
     public DateTime? DueDate { get; set; }
+    public Guid? ProjectId { get; set; }
     public string? ProjectName { get; set; }
 }
 

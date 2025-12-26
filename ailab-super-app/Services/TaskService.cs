@@ -1,7 +1,7 @@
 using ailab_super_app.Common.Exceptions;
 using ailab_super_app.Data;
 using ailab_super_app.DTOs.Task;
-using ailab_super_app.Helpers; // GetTurkeyTime için eklendi
+using ailab_super_app.Helpers;
 using ailab_super_app.Models;
 using ailab_super_app.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -35,6 +35,7 @@ public class TaskService : ITaskService
             .Skip((paginationParams.PageNumber - 1) * paginationParams.PageSize)
             .Take(paginationParams.PageSize)
             .Include(t => t.Project)
+            .Include(t => t.User) // AssigneeName için User'ı include et
             .ToListAsync();
 
         var taskDtos = tasks.Select(t => new TaskListDto
@@ -43,8 +44,9 @@ public class TaskService : ITaskService
             Title = t.Title,
             Status = t.Status,
             CreatedAt = t.CreatedAt,
-            DueDate = t.DueDate,
             AssigneeId = t.AssigneeId,
+            AssigneeName = t.User?.FullName ?? t.User?.UserName,
+            DueDate = t.DueDate,
             ProjectId = t.ProjectId,
             ProjectName = t.Project?.Name
         }).ToList();
@@ -83,6 +85,7 @@ public class TaskService : ITaskService
         var tasks = await query
             .OrderByDescending(t => t.CreatedAt)
             .Include(t => t.Project)
+            .Include(t => t.User) // AssigneeName için include
             .ToListAsync();
 
         return tasks.Select(t => new TaskListDto
@@ -91,8 +94,9 @@ public class TaskService : ITaskService
             Title = t.Title,
             Status = t.Status,
             CreatedAt = t.CreatedAt,
-            DueDate = t.DueDate,
             AssigneeId = t.AssigneeId,
+            AssigneeName = t.User?.FullName ?? t.User?.UserName,
+            DueDate = t.DueDate,
             ProjectId = t.ProjectId,
             ProjectName = t.Project?.Name
         }).ToList();
