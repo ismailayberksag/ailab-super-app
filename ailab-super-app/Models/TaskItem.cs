@@ -16,6 +16,8 @@ public class TaskItem
 
     // Kime atandı
     public Guid AssigneeId { get; set; }
+    
+    [System.ComponentModel.DataAnnotations.Schema.ForeignKey("AssigneeId")]
     public User? User { get; set; } // Navigasyon özelliği eklendi
 
     // Kim oluşturdu
