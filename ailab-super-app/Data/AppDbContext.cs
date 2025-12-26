@@ -34,6 +34,7 @@ namespace ailab_super_app.Data
         public DbSet<ButtonPressLog> ButtonPressLogs { get; set; }
         public DbSet<UserAvatar> UserAvatars { get; set; }
         public DbSet<Avatar> Avatars { get; set; }
+        public DbSet<BugReport> BugReports { get; set; }
 
         protected override void OnModelCreating(ModelBuilder b)
         {
@@ -49,6 +50,16 @@ namespace ailab_super_app.Data
             b.Entity<IdentityUserToken<Guid>>().ToTable("user_tokens");
             b.Entity<IdentityRoleClaim<Guid>>().ToTable("role_claims");
             b.Entity<UserRole>().ToTable("user_roles"); // Custom UserRole kullan
+
+            // Bug Reports
+            b.Entity<BugReport>(e =>
+            {
+                e.ToTable("bug_reports");
+                e.HasOne(x => x.ReportedByUser)
+                 .WithMany()
+                 .HasForeignKey(x => x.ReportedByUserId)
+                 .OnDelete(DeleteBehavior.Restrict); // Kullanıcı silinse de rapor kalsın
+            });
 
             // User Avatar (User 1-1 UserAvatar 1-1 Avatar)
             b.Entity<UserAvatar>(e =>
