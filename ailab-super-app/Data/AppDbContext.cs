@@ -55,6 +55,8 @@ namespace ailab_super_app.Data
             b.Entity<BugReport>(e =>
             {
                 e.ToTable("bug_reports");
+                e.Property(x => x.BugType).HasConversion<string>();
+                e.Property(x => x.Platform).HasConversion<string>();
                 e.HasOne(x => x.ReportedByUser)
                  .WithMany()
                  .HasForeignKey(x => x.ReportedByUserId)
