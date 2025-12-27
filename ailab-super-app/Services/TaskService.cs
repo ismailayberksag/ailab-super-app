@@ -4,6 +4,7 @@ using ailab_super_app.DTOs.Task;
 using ailab_super_app.Helpers;
 using ailab_super_app.Models;
 using ailab_super_app.Services.Interfaces;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using TaskStatus = ailab_super_app.Models.Enums.TaskStatus;
 
@@ -14,12 +15,18 @@ public class TaskService : ITaskService
     private readonly AppDbContext _context;
     private readonly ILogger<TaskService> _logger;
     private readonly IScoringService _scoringService;
+    private readonly UserManager<User> _userManager; // Eklendi
 
-    public TaskService(AppDbContext context, ILogger<TaskService> _logger, IScoringService scoringService)
+    public TaskService(
+        AppDbContext context, 
+        ILogger<TaskService> logger, 
+        IScoringService scoringService,
+        UserManager<User> userManager) // Eklendi
     {
         _context = context;
-        this._logger = _logger;
+        _logger = logger;
         _scoringService = scoringService;
+        _userManager = userManager;
     }
 
     public async Task<PagedResult<TaskListDto>> GetProjectTasksAsync(Guid projectId, PaginationParams paginationParams, Guid? requestingUserId)
@@ -37,7 +44,7 @@ public class TaskService : ITaskService
             .Skip((paginationParams.PageNumber - 1) * paginationParams.PageSize)
             .Take(paginationParams.PageSize)
             .Include(t => t.Project)
-            .Include(t => t.User) // Modelde artik var
+            .Include(t => t.User)
             .ToListAsync();
 
         var taskDtos = tasks.Select(t => new TaskListDto
@@ -66,11 +73,12 @@ public class TaskService : ITaskService
     {
         var task = await _context.Tasks
             .Include(t => t.Project)
+            .Include(t => t.User) // AssigneeName için
             .FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted);
 
         if (task == null) throw new NotFoundException("Görev bulunamadı");
 
-        return MapToTaskDto(task);
+        return await MapToTaskDtoAsync(task);
     }
 
     public async Task<List<TaskListDto>> GetMyTasksAsync(Guid userId, TaskStatus? status = null)
@@ -87,7 +95,7 @@ public class TaskService : ITaskService
         var tasks = await query
             .OrderByDescending(t => t.CreatedAt)
             .Include(t => t.Project)
-            .Include(t => t.User) // Modelde artik var
+            .Include(t => t.User)
             .ToListAsync();
 
         return tasks.Select(t => new TaskListDto
@@ -122,13 +130,21 @@ public class TaskService : ITaskService
         _context.Tasks.Add(task);
         await _context.SaveChangesAsync();
 
-        return MapToTaskDto(task);
+        // İlişkili verileri yükle
+        await _context.Entry(task).Reference(t => t.Project).LoadAsync();
+        await _context.Entry(task).Reference(t => t.User).LoadAsync();
+        
+        return await MapToTaskDtoAsync(task);
     }
 
     public async Task<TaskDto> UpdateTaskAsync(Guid taskId, UpdateTaskDto dto, Guid requestingUserId)
     {
         var now = DateTimeHelper.GetTurkeyTime();
-        var task = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted);
+        var task = await _context.Tasks
+            .Include(t => t.Project)
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted);
+
         if (task == null) throw new NotFoundException("Görev bulunamadı");
 
         if (dto.Title != null) task.Title = dto.Title;
@@ -144,13 +160,17 @@ public class TaskService : ITaskService
         }
 
         await _context.SaveChangesAsync();
-        return MapToTaskDto(task);
+        return await MapToTaskDtoAsync(task);
     }
 
     public async Task<TaskDto> UpdateTaskStatusAsync(Guid taskId, UpdateTaskStatusDto dto, Guid requestingUserId)
     {
         var now = DateTimeHelper.GetTurkeyTime();
-        var task = await _context.Tasks.FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted);
+        var task = await _context.Tasks
+            .Include(t => t.Project)
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.Id == taskId && !t.IsDeleted);
+
         if (task == null) throw new NotFoundException("Görev bulunamadı");
 
         task.Status = dto.Status;
@@ -160,7 +180,7 @@ public class TaskService : ITaskService
         {
             task.CompletedAt = now;
 
-            // YENİ SCORING: Eğer kategori belirlenmişse puanı ver
+            // YENİ SCORING
             if (task.ScoreCategory.HasValue && !task.ScoreProcessed)
             {
                 var points = _scoringService.GetPointsByCategory(task.ScoreCategory.Value);
@@ -174,7 +194,7 @@ public class TaskService : ITaskService
         }
 
         await _context.SaveChangesAsync();
-        return MapToTaskDto(task);
+        return await MapToTaskDtoAsync(task);
     }
 
     public async Task DeleteTaskAsync(Guid taskId, Guid requestingUserId)
@@ -190,8 +210,16 @@ public class TaskService : ITaskService
         await _context.SaveChangesAsync();
     }
 
-    private TaskDto MapToTaskDto(TaskItem task)
+    // Helper metodunu async ve UserManager kullanacak şekilde güncelledim
+    private async Task<TaskDto> MapToTaskDtoAsync(TaskItem task)
     {
+        string? createdByName = null;
+        if (task.CreatedBy != Guid.Empty)
+        {
+            var creator = await _userManager.FindByIdAsync(task.CreatedBy.ToString());
+            createdByName = creator?.FullName ?? creator?.UserName;
+        }
+
         return new TaskDto
         {
             Id = task.Id,
@@ -203,8 +231,11 @@ public class TaskService : ITaskService
             DueDate = task.DueDate,
             CompletedAt = task.CompletedAt,
             AssigneeId = task.AssigneeId,
+            AssigneeName = task.User?.FullName ?? task.User?.UserName,
             CreatedBy = task.CreatedBy,
-            ProjectId = task.ProjectId
+            CreatedByName = createdByName,
+            ProjectId = task.ProjectId,
+            ProjectName = task.Project?.Name
         };
     }
 }
