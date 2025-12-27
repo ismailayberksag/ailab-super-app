@@ -146,7 +146,13 @@ public class RoomAccessService : IRoomAccessService
                     }
                     
                     // LabCurrentOccupancy sil
-
+                    var occupancy = await _context.LabCurrentOccupancy.FirstOrDefaultAsync(o => o.UserId == userId);
+                    if (occupancy != null)
+                    {
+                        _context.LabCurrentOccupancy.Remove(occupancy);
+                    }
+                }
+            }
 
             // 7. Update RfidCard LastUsed
             rfidCard.LastUsed = now;
