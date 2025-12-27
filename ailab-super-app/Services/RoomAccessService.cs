@@ -17,17 +17,20 @@ public class RoomAccessService : IRoomAccessService
     private readonly ILogger<RoomAccessService> _logger;
     private readonly UserManager<User> _userManager;
     private readonly IProjectService _projectService;
+    private readonly IScoringService _scoringService;
 
     public RoomAccessService(
         AppDbContext context, 
         ILogger<RoomAccessService> logger,
         UserManager<User> userManager,
-        IProjectService projectService)
+        IProjectService projectService,
+        IScoringService scoringService) 
     {
         _context = context;
         _logger = logger;
         _userManager = userManager;
         _projectService = projectService;
+        _scoringService = scoringService;
     }
 
     public async Task<CardScanResponseDto> ProcessCardScanAsync(CardScanRequestDto request)
@@ -127,20 +130,23 @@ public class RoomAccessService : IRoomAccessService
                     }
                 }
             }
-            else // Çıkış
+            else // Exit
             {
                 if (activeSession != null)
                 {
                     activeSession.ExitTime = now;
-                    activeSession.DurationMinutes = (int)(activeSession.ExitTime.Value - activeSession.EntryTime).TotalMinutes;
-                    
-                    var occupancy = await _context.LabCurrentOccupancy.FirstOrDefaultAsync(o => o.UserId == userId);
-                    if (occupancy != null)
+                    var durationMinutes = (int)(activeSession.ExitTime.Value - activeSession.EntryTime).TotalMinutes;
+                    activeSession.DurationMinutes = durationMinutes;
+
+                    // LAB SCORING: 15 dk ve üzeri ise puan ver
+                    if (durationMinutes >= 15)
                     {
-                        _context.LabCurrentOccupancy.Remove(occupancy);
+                        var points = (decimal)durationMinutes * 0.005m;
+                        await _scoringService.AddScoreAsync(userId, points, $"Lab Usage: {durationMinutes} min", "LabEntry", activeSession.Id);
                     }
-                }
-            }
+                    
+                    // LabCurrentOccupancy sil
+
 
             // 7. Update RfidCard LastUsed
             rfidCard.LastUsed = now;

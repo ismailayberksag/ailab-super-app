@@ -13,11 +13,13 @@ public class TaskService : ITaskService
 {
     private readonly AppDbContext _context;
     private readonly ILogger<TaskService> _logger;
+    private readonly IScoringService _scoringService;
 
-    public TaskService(AppDbContext context, ILogger<TaskService> logger)
+    public TaskService(AppDbContext context, ILogger<TaskService> _logger, IScoringService scoringService)
     {
         _context = context;
-        _logger = logger;
+        this._logger = _logger;
+        _scoringService = scoringService;
     }
 
     public async Task<PagedResult<TaskListDto>> GetProjectTasksAsync(Guid projectId, PaginationParams paginationParams, Guid? requestingUserId)
@@ -157,6 +159,14 @@ public class TaskService : ITaskService
         if (task.Status == TaskStatus.Done)
         {
             task.CompletedAt = now;
+
+            // YENİ SCORING: Eğer kategori belirlenmişse puanı ver
+            if (task.ScoreCategory.HasValue && !task.ScoreProcessed)
+            {
+                var points = _scoringService.GetPointsByCategory(task.ScoreCategory.Value);
+                await _scoringService.AddScoreAsync(task.AssigneeId, points, $"Task Completed: {task.Title}", "Task", task.Id);
+                task.ScoreProcessed = true;
+            }
         }
         else
         {
