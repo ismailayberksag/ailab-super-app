@@ -51,8 +51,8 @@ public class DeadlinePenaltyWorker : BackgroundService
 
         // 1. Geciken ve Done olmayan taskları bul
         var overdueTasks = await db.Tasks
-            .Where(t => t.Status != TaskStatus.Done 
-                     && t.Status != TaskStatus.Cancelled 
+            .Where(t => t.Status != ailab_super_app.Models.Enums.TaskStatus.Done 
+                     && t.Status != ailab_super_app.Models.Enums.TaskStatus.Cancelled 
                      && t.DueDate != null 
                      && t.DueDate < now 
                      && !t.IsDeleted)

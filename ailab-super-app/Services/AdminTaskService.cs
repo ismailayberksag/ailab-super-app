@@ -51,7 +51,7 @@ public class AdminTaskService : IAdminTaskService
         task.ScoreAssignedAt = DateTimeHelper.GetTurkeyTime();
 
         // Eğer task zaten "Done" durumundaysa puanı hemen işle
-        if (task.Status == TaskStatus.Done && !task.ScoreProcessed)
+        if (task.Status == ailab_super_app.Models.Enums.TaskStatus.Done && !task.ScoreProcessed)
         {
             var points = _scoringService.GetPointsByCategory(category);
             await _scoringService.AddScoreAsync(task.AssigneeId, points, $"Task Score Assigned (Retroactive): {task.Title}", "Task", task.Id);

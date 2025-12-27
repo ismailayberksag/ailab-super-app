@@ -9,7 +9,7 @@ public class UserListDto
     public string? FullName { get; set; }
     public string? ProfileImageUrl { get; set; }
     public UserStatus Status { get; set; }
-    public int TotalScore { get; set; }
+    public decimal TotalScore { get; set; }
     public DateTime CreatedAt { get; set; }
     public List<string> Roles { get; set; } = new();
 }
