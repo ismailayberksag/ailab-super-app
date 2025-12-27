@@ -27,7 +27,7 @@ public class User : IdentityUser<Guid>
 
     public UserStatus Status { get; set; } = UserStatus.Active;
 
-    public int TotalScore { get; set; } = 0;
+    public decimal TotalScore { get; set; } = 0;
 
     public DateTime CreatedAt { get; set; }
 

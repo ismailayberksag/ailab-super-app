@@ -14,6 +14,11 @@ public class TaskItem
     public DateTime? DueDate { get; set; }
     public DateTime? CompletedAt { get; set; }
 
+    // Scoring
+    public int? ScoreCategory { get; set; } // Null: Beklemede, 0, 1, 2, 3
+    public DateTime? ScoreAssignedAt { get; set; }
+    public bool ScoreProcessed { get; set; } = false;
+
     // Kime atandı
     public Guid AssigneeId { get; set; }
     

@@ -24,6 +24,7 @@ namespace ailab_super_app.Data
         public DbSet<LabCurrentOccupancy> LabCurrentOccupancy { get; set; }
         public DbSet<ReportRequest> ReportRequests { get; set; }
         public DbSet<ScoreHistory> ScoreHistory { get; set; }
+        public DbSet<MonthlyScoreSnapshot> MonthlyScoreSnapshots { get; set; }
         public DbSet<AnnouncementProject> AnnouncementProjects { get; set; }
         public DbSet<AnnouncementUser> AnnouncementUsers { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
@@ -87,6 +88,7 @@ namespace ailab_super_app.Data
                 e.Property(x => x.FullName).HasMaxLength(200);
                 e.Property(x => x.Phone).HasMaxLength(20);
                 e.Property(x => x.ProfileImageUrl).HasMaxLength(500);
+                e.Property(x => x.TotalScore).HasPrecision(18, 4);
 
                 // Yeni: SchoolNumber konfigurasyonu ve benzersiz index
                 e.Property(x => x.SchoolNumber).HasMaxLength(50);
@@ -243,6 +245,7 @@ namespace ailab_super_app.Data
                 e.HasKey(x => x.Id);
                 e.Property(x => x.Reason).IsRequired().HasMaxLength(500);
                 e.Property(x => x.ReferenceType).HasMaxLength(50);
+                e.Property(x => x.PointsChanged).HasPrecision(18, 4);
 
                 e.HasIndex(x => new { x.UserId, x.CreatedAt });
 

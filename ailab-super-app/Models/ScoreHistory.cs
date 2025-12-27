@@ -6,7 +6,7 @@ public class ScoreHistory
 
     public Guid UserId { get; set; }
 
-    public int PointsChanged { get; set; }
+    public decimal PointsChanged { get; set; }
 
     public string Reason { get; set; } = string.Empty;
 
