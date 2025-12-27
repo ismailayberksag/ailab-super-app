@@ -99,11 +99,15 @@ namespace ailab_super_app
             builder.Services.AddScoped<IProjectService, ProjectService>();
             builder.Services.AddScoped<ITaskService, TaskService>();
             builder.Services.AddScoped<IBugReportService, BugReportService>();
+            builder.Services.AddScoped<IScoringService, ScoringService>();
+            builder.Services.AddScoped<IAdminTaskService, AdminTaskService>();
             builder.Services.AddScoped<IRoomAccessService, RoomAccessService>();
             builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
             
             // Background Services
             builder.Services.AddHostedService<LabAutoCheckoutWorker>();
+            builder.Services.AddHostedService<DeadlinePenaltyWorker>();
+            builder.Services.AddHostedService<MonthlyScoreResetWorker>();
 
             // Controllers
             builder.Services.AddControllers();
