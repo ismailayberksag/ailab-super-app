@@ -23,6 +23,75 @@ namespace ailab_super_app.Services
 
         public async Task<Guid> CreateAsync(Guid actorUserId, CreateAnnouncementDto dto)
         {
+            // Kullanıcı ve Rol Kontrolü
+            var user = await _context.Users
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .Include(u => u.ProjectMemberships) // Eklendi
+                .FirstOrDefaultAsync(u => u.Id == actorUserId);
+
+            if (user == null) throw new Exception("Kullanıcı bulunamadı.");
+
+            bool isAdmin = user.UserRoles.Any(ur => ur.Role.Name == "Admin");
+            bool isCaptain = user.ProjectMemberships.Any(pm => pm.Role == "Captain"); // Genel kaptanlık kontrolü
+
+            // 1. Member Kontrolü (Hiçbir şey yapamaz)
+            if (!isAdmin && !isCaptain)
+            {
+                throw new UnauthorizedAccessException("Duyuru oluşturma yetkiniz yok.");
+            }
+
+            // 2. Global Duyuru Kontrolü (Sadece Admin)
+            if (dto.Scope == AnnouncementScope.Global && !isAdmin)
+            {
+                throw new UnauthorizedAccessException("Global duyuru sadece Admin tarafından oluşturulabilir.");
+            }
+
+            // 3. Proje Duyurusu Kontrolü (Captain Sadece Kendi Projesine)
+            if (dto.Scope == AnnouncementScope.Project && !isAdmin)
+            {
+                // Kaptan, hedef projelerin hepsinde kaptan mı?
+                if (dto.TargetProjectIds == null || !dto.TargetProjectIds.Any())
+                {
+                    throw new Exception("Hedef proje seçilmelidir.");
+                }
+
+                var captainProjectIds = await _context.ProjectMembers
+                    .Where(pm => pm.UserId == actorUserId && pm.Role == "Captain" && !pm.IsDeleted)
+                    .Select(pm => pm.ProjectId)
+                    .ToListAsync();
+
+                bool allTargetsAreManaged = dto.TargetProjectIds.All(id => captainProjectIds.Contains(id));
+
+                if (!allTargetsAreManaged)
+                {
+                    throw new UnauthorizedAccessException("Sadece kaptanı olduğunuz projelere duyuru atabilirsiniz.");
+                }
+            }
+            
+            // 4. Bireysel Duyuru Kontrolü (Captain Sadece Kendi Projesindeki Üyelere)
+            if (dto.Scope == AnnouncementScope.Individual && !isAdmin)
+            {
+                 // Bu mantık biraz karmaşık olabilir, kaptanın tüm projelerindeki üyeleri çekip kontrol etmek gerekir.
+                 // Şimdilik Captain bireysel atabilir varsayımıyla devam ediyorum (Raporda 'Seçili üyelere' yetkisi var).
+                 // Ancak güvenlik için: Hedef kullanıcı, kaptanın herhangi bir projesinde üye mi?
+                 
+                 var captainProjectIds = await _context.ProjectMembers
+                    .Where(pm => pm.UserId == actorUserId && pm.Role == "Captain" && !pm.IsDeleted)
+                    .Select(pm => pm.ProjectId)
+                    .ToListAsync();
+                 
+                 var memberIdsInManagedProjects = await _context.ProjectMembers
+                    .Where(pm => captainProjectIds.Contains(pm.ProjectId) && !pm.IsDeleted)
+                    .Select(pm => pm.UserId)
+                    .ToListAsync();
+
+                 if (dto.TargetUserIds != null && !dto.TargetUserIds.All(id => memberIdsInManagedProjects.Contains(id)))
+                 {
+                     throw new UnauthorizedAccessException("Sadece projelerinizdeki üyelere duyuru atabilirsiniz.");
+                 }
+            }
+
             var now = DateTimeHelper.GetTurkeyTime();
             var announcement = new Announcement
             {
@@ -65,9 +134,16 @@ namespace ailab_super_app.Services
 
         public async Task<PagedResult<AnnouncementListDto>> GetMyAnnouncementsAsync(Guid userId, PaginationParams pagination, bool? isRead = null)
         {
+            // Kullanıcının dahil olduğu projeleri bul
             var userProjectIds = await _context.ProjectMembers
                 .Where(pm => pm.UserId == userId && !pm.IsDeleted)
                 .Select(pm => pm.ProjectId)
+                .ToListAsync();
+
+            // Kullanıcının okuduğu duyuruların ID'lerini çek (Performans için)
+            var readAnnouncementIds = await _context.AnnouncementUsers
+                .Where(au => au.UserId == userId && au.IsRead)
+                .Select(au => au.AnnouncementId)
                 .ToListAsync();
 
             var query = _context.Announcements
@@ -77,6 +153,21 @@ namespace ailab_super_app.Services
                     (a.Scope == AnnouncementScope.Project && a.TargetProjects.Any(tp => userProjectIds.Contains(tp.ProjectId))) ||
                     (a.Scope == AnnouncementScope.Individual && a.TargetUsers.Any(tu => tu.UserId == userId))
                 ));
+
+            // Filtreleme: isRead parametresi varsa uygula
+            if (isRead.HasValue)
+            {
+                if (isRead.Value)
+                {
+                    // Sadece okunanları getir
+                    query = query.Where(a => readAnnouncementIds.Contains(a.Id));
+                }
+                else
+                {
+                    // Sadece okunmayanları getir
+                    query = query.Where(a => !readAnnouncementIds.Contains(a.Id));
+                }
+            }
 
             var totalCount = await query.CountAsync();
             var items = await query
@@ -89,9 +180,8 @@ namespace ailab_super_app.Services
                     Title = a.Title,
                     CreatedAt = a.CreatedAt,
                     Scope = a.Scope,
-                    IsRead = a.Scope == AnnouncementScope.Individual 
-                        ? a.TargetUsers.First(tu => tu.UserId == userId).IsRead 
-                        : false 
+                    // Okunma durumu kontrolü: Listede var mı?
+                    IsRead = readAnnouncementIds.Contains(a.Id)
                 })
                 .ToListAsync();
 
@@ -113,6 +203,33 @@ namespace ailab_super_app.Services
 
             if (announcement == null) throw new Exception("Duyuru bulunamadı.");
 
+            // Erişim Kontrolü
+            bool hasAccess = false;
+
+            if (announcement.Scope == AnnouncementScope.Global)
+            {
+                hasAccess = true;
+            }
+            else if (announcement.Scope == AnnouncementScope.Project)
+            {
+                // Kullanıcının proje üyeliklerini kontrol et
+                var userProjectIds = await _context.ProjectMembers
+                    .Where(pm => pm.UserId == userId && !pm.IsDeleted)
+                    .Select(pm => pm.ProjectId)
+                    .ToListAsync();
+
+                hasAccess = announcement.TargetProjects.Any(tp => userProjectIds.Contains(tp.ProjectId));
+            }
+            else if (announcement.Scope == AnnouncementScope.Individual)
+            {
+                hasAccess = announcement.TargetUsers.Any(tu => tu.UserId == userId);
+            }
+
+            if (!hasAccess)
+            {
+                throw new UnauthorizedAccessException("Bu duyuruya erişim yetkiniz yok.");
+            }
+
             return new AnnouncementDto
             {
                 Id = announcement.Id,
@@ -130,7 +247,22 @@ namespace ailab_super_app.Services
 
             if (targetUser != null)
             {
-                targetUser.IsRead = true;
+                // Zaten kayıt varsa güncelle (Idempotent)
+                if (!targetUser.IsRead)
+                {
+                    targetUser.IsRead = true;
+                    await _context.SaveChangesAsync();
+                }
+            }
+            else
+            {
+                // Kayıt yoksa (Global/Project duyurusu ilk kez okunuyor), yeni kayıt oluştur (INSERT)
+                _context.AnnouncementUsers.Add(new AnnouncementUser
+                {
+                    AnnouncementId = id,
+                    UserId = userId,
+                    IsRead = true
+                });
                 await _context.SaveChangesAsync();
             }
         }
