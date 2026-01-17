@@ -60,4 +60,18 @@ public class AdminTaskService : IAdminTaskService
 
         await _context.SaveChangesAsync();
     }
+
+    public async Task AdjustUserScoreAsync(Guid userId, decimal amount, string reason, Guid adminId)
+    {
+        // Kullanıcı kontrolü
+        var user = await _context.Users.FindAsync(userId);
+        if (user == null || user.IsDeleted) throw new Exception("Kullanıcı bulunamadı.");
+
+        // Scoring servisi kullan
+        // reason parametresine admin bilgisini ekleyebiliriz
+        string formattedReason = $"{reason} (Admin Adjustment by {adminId})";
+        
+        // ReferenceId olarak Guid.Empty veya adminId verilebilir, şu anlık null/empty bırakıyorum çünkü task veya proje değil.
+        await _scoringService.AddScoreAsync(userId, amount, formattedReason, "AdminAdjustment", null);
+    }
 }

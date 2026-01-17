@@ -1,6 +1,8 @@
+using ailab_super_app.DTOs.AdminScore;
 using ailab_super_app.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace ailab_super_app.Controllers;
 
@@ -36,6 +38,24 @@ public class AdminScoreController : ControllerBase
         {
             await _adminTaskService.AssignTaskScoreAsync(taskId, category);
             return Ok(new { message = "Puan başarıyla atandı." });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Kullanıcıya manuel puan ekler veya çıkarır.
+    /// </summary>
+    [HttpPost("users/{userId}/adjust-score")]
+    public async Task<IActionResult> AdjustUserScore(Guid userId, [FromBody] AdjustScoreDto dto)
+    {
+        try
+        {
+            var adminId = Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
+            await _adminTaskService.AdjustUserScoreAsync(userId, dto.Amount, dto.Reason, adminId);
+            return Ok(new { message = "Puan işlemi başarıyla gerçekleşti." });
         }
         catch (Exception ex)
         {

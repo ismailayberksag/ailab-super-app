@@ -238,4 +238,29 @@ public class TaskService : ITaskService
             ProjectName = task.Project?.Name
         };
     }
+
+    public async Task<List<TaskListDto>> GetUserTaskHistoryAsync(Guid userId)
+    {
+        // Tarihçe olduğu için tüm durumları (Status) getiriyoruz.
+        // İsteğe bağlı olarak silinmişleri de dahil edebiliriz ama şimdilik aktif kayıtlara odaklanıyoruz.
+        var tasks = await _context.Tasks
+            .Where(t => t.AssigneeId == userId && !t.IsDeleted)
+            .OrderByDescending(t => t.CreatedAt) // En yeniden eskiye
+            .Include(t => t.Project)
+            .Include(t => t.User)
+            .ToListAsync();
+
+        return tasks.Select(t => new TaskListDto
+        {
+            Id = t.Id,
+            Title = t.Title,
+            Status = t.Status,
+            CreatedAt = t.CreatedAt,
+            AssigneeId = t.AssigneeId,
+            AssigneeName = t.User?.FullName ?? t.User?.UserName,
+            DueDate = t.DueDate,
+            ProjectId = t.ProjectId,
+            ProjectName = t.Project?.Name
+        }).ToList();
+    }
 }

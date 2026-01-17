@@ -102,6 +102,25 @@ public class TasksController : ControllerBase
     }
 
     /// <summary>
+    /// Get specific user's task history (Admin only)
+    /// </summary>
+    [HttpGet("user/{userId}/history")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<List<TaskListDto>>> GetUserTaskHistory(Guid userId)
+    {
+        try
+        {
+            var tasks = await _taskService.GetUserTaskHistoryAsync(userId);
+            return Ok(tasks);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Get user task history error: {ex.Message}");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Create a new task (Admin or Captain)
     /// </summary>
     [HttpPost]

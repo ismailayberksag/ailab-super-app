@@ -6,4 +6,5 @@ public interface IAdminTaskService
 {
     Task<List<TaskListDto>> GetPendingScoreTasksAsync();
     Task AssignTaskScoreAsync(Guid taskId, int category);
+    Task AdjustUserScoreAsync(Guid userId, decimal amount, string reason, Guid adminId);
 }

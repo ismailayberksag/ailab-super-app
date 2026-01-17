@@ -16,5 +16,8 @@ public interface ITaskService
     // Member Task Operations
     Task<TaskDto> UpdateTaskStatusAsync(Guid taskId, UpdateTaskStatusDto dto, Guid requestingUserId);
     Task<List<TaskListDto>> GetMyTasksAsync(Guid userId, TaskStatus? statusFilter = null);
+    
+    // Admin & History
+    Task<List<TaskListDto>> GetUserTaskHistoryAsync(Guid userId);
 }
 
