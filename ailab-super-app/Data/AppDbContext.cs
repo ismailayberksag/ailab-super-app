@@ -31,7 +31,8 @@ namespace ailab_super_app.Data
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<RfidReader> RfidReaders { get; set; }
         public DbSet<DoorState> DoorStates { get; set; }
-        public DbSet<ReportRequestUser> ReportRequestUsers { get; set; }
+        public DbSet<ReportRequestProject> ReportRequestProjects { get; set; }
+        public DbSet<ReportAuditLog> ReportAuditLogs { get; set; }
         public DbSet<ButtonPressLog> ButtonPressLogs { get; set; }
         public DbSet<UserAvatar> UserAvatars { get; set; }
         public DbSet<Avatar> Avatars { get; set; }
@@ -204,38 +205,48 @@ namespace ailab_super_app.Data
                 //durum sütunu (int formatında)
                 e.Property(x => x.Status).IsRequired();
 
-                //ProjectId nullable ve SetNull
-                e.HasOne(x => x.Project)
+                //CreatedBy asla null değil
+                e.HasOne(x => x.CreatedByUser)
                  .WithMany()
-                 .HasForeignKey(x => x.ProjectId)
-                 .OnDelete(DeleteBehavior.SetNull); //İlişki kopsa da kayıtlar kalsın
-
-                //RequestedBy asla null değil ve Restrict(kısıtlanmış yani kullanıcı silinse de talep kalır, ama bu FK engeller
-                //bu yüzden kullanıcı silinemez veya önce talebi devredilmeli)
-                e.HasOne(x => x.RequestedByUser)
-                 .WithMany()
-                 .HasForeignKey(x => x.RequestedBy)
+                 .HasForeignKey(x => x.CreatedBy)
                  .OnDelete(DeleteBehavior.Restrict);
             });
 
-            //Report Request User M2M
-            //Aynı kullanıcı aynı talebe iki kez eklenemesin diye composite unique index
-            b.Entity<ReportRequestUser>(e =>
+            // ReportRequestProject M2M
+            b.Entity<ReportRequestProject>(e =>
             {
-                e.ToTable("report_request_users");
+                e.ToTable("report_request_projects");
                 e.HasKey(x => x.Id);
 
                 e.HasOne(x => x.ReportRequest)
-                .WithMany(rr => rr.TargetUsers)
+                .WithMany(rr => rr.TargetProjects)
                 .HasForeignKey(x => x.ReportRequestId)
-                .OnDelete(DeleteBehavior.Cascade); // Talep silinirse linkler silinir
+                .OnDelete(DeleteBehavior.Cascade);
 
-                e.HasOne(x => x.User)
+                e.HasOne(x => x.Project)
                 .WithMany()
-                .HasForeignKey(x => x.UserId)
-                .OnDelete(DeleteBehavior.Cascade); // Kullanıcı silinirse link silinsin
+                .HasForeignKey(x => x.ProjectId)
+                .OnDelete(DeleteBehavior.Cascade);
 
-                e.HasIndex(x => new { x.ReportRequestId, x.UserId }).IsUnique();
+                e.HasIndex(x => new { x.ReportRequestId, x.ProjectId }).IsUnique();
+            });
+
+            // Report Audit Logs
+            b.Entity<ReportAuditLog>(e =>
+            {
+                e.ToTable("report_audit_logs");
+                e.HasKey(x => x.Id);
+                e.Property(x => x.Action).IsRequired().HasMaxLength(50);
+
+                e.HasOne(x => x.Report)
+                 .WithMany()
+                 .HasForeignKey(x => x.ReportId)
+                 .OnDelete(DeleteBehavior.Cascade); // Rapor silinirse loglar silinsin mi? Genelde hayır ama burada cascade olsun.
+
+                e.HasOne(x => x.PerformedByUser)
+                 .WithMany()
+                 .HasForeignKey(x => x.PerformedByUserId)
+                 .OnDelete(DeleteBehavior.Restrict);
             });
 
             // Score History

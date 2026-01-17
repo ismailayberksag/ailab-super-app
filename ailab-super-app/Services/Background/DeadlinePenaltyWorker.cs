@@ -49,7 +49,7 @@ public class DeadlinePenaltyWorker : BackgroundService
         var now = DateTimeHelper.GetTurkeyTime();
         var todayDate = now.Date;
 
-        // 1. Geciken ve Done olmayan taskları bul
+        // --- 1. TASK PENALTIES ---
         var overdueTasks = await db.Tasks
             .Where(t => t.Status != ailab_super_app.Models.Enums.TaskStatus.Done 
                      && t.Status != ailab_super_app.Models.Enums.TaskStatus.Cancelled 
@@ -60,7 +60,6 @@ public class DeadlinePenaltyWorker : BackgroundService
 
         foreach (var task in overdueTasks)
         {
-            // 2. IDEMPOTENCY: Bugün bu task için ceza kesildi mi?
             var alreadyPenalized = await db.ScoreHistory
                 .AnyAsync(sh => sh.ReferenceId == task.Id 
                              && sh.Reason.StartsWith("Deadline Penalty") 
@@ -71,5 +70,51 @@ public class DeadlinePenaltyWorker : BackgroundService
                 await scoringService.AddScoreAsync(task.AssigneeId, -0.1m, $"Deadline Penalty: {task.Title}", "Task", task.Id);
             }
         }
+
+        // --- 2. REPORT PENALTIES ---
+        // Tarihi geçmiş ve henüz ceza uygulanmamış proje-talep eşleşmeleri
+        var overdueReportRequests = await db.ReportRequestProjects
+            .Include(rrp => rrp.ReportRequest)
+            .Include(rrp => rrp.Project)
+                .ThenInclude(p => p.Members)
+            .Where(rrp => !rrp.PenaltyApplied 
+                       && rrp.ReportRequest.DueDate != null 
+                       && rrp.ReportRequest.DueDate < now
+                       && !rrp.ReportRequest.IsDeleted)
+            .ToListAsync();
+
+        foreach (var reqProject in overdueReportRequests)
+        {
+            // Bu proje bu talep için geçerli (Rejected olmayan ve Active olan) bir rapor yüklemiş mi?
+            // Not: Report tablosunda RequestId ve ProjectId var.
+            bool hasValidSubmission = await db.Reports
+                .AnyAsync(r => r.RequestId == reqProject.ReportRequestId 
+                            && r.ProjectId == reqProject.ProjectId 
+                            && r.IsActive 
+                            && r.Status != ReportStatus.Rejected);
+
+            if (!hasValidSubmission)
+            {
+                // Ceza Uygula: Projedeki herkese -5
+                var members = reqProject.Project.Members.Where(m => !m.IsDeleted).ToList();
+                foreach (var member in members)
+                {
+                    await scoringService.AddScoreAsync(
+                        member.UserId, 
+                        -5.0m, 
+                        $"Rapor Teslim Cezası: {reqProject.ReportRequest.Title}", 
+                        "ReportDeadline", 
+                        reqProject.ReportRequestId
+                    );
+                }
+
+                // Cezayı işaretle ki tekrar kesilmesin
+                reqProject.PenaltyApplied = true;
+                reqProject.PenaltyAppliedAt = now;
+            }
+        }
+
+        // Değişiklikleri kaydet (PenaltyApplied update için)
+        await db.SaveChangesAsync();
     }
 }

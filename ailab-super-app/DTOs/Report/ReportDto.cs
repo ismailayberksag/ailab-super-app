@@ -5,18 +5,21 @@ public class ReportDto
 {
     public Guid Id { get; set; }
     public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; } // Added Description
     public string FilePath { get; set; } = string.Empty;
 
     public PeriodType? PeriodType { get; set; }
     public DateTime? PeriodStart { get; set; }
     public DateTime? PeriodEnd { get; set; }
     public DateTime SubmittedAt { get; set; }
-    public string Status { get; set; } = string.Empty;
+    public ReportStatus Status { get; set; }
+
+    public bool IsActive { get; set; } // Added IsActive
 
     public Guid ProjectId { get; set; }
     public string? ProjectName { get; set; }
 
-    public Guid? RequestId { get; set; }
+    public Guid RequestId { get; set; }
 
     public Guid? SubmittedBy { get; set; }
     public string? SubmittedByName { get; set; }
@@ -26,6 +29,3 @@ public class ReportDto
     public DateTime? ReviewedAt { get; set; }
     public string? ReviewNotes { get; set; }
 }
-
-
-

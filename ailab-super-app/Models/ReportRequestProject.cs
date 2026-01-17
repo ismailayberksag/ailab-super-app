@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace ailab_super_app.Models;
 
-public class ReportRequestUser
+public class ReportRequestProject
 {
     [Key]
     public Guid Id { get; set; }
@@ -12,11 +12,14 @@ public class ReportRequestUser
     public Guid ReportRequestId { get; set; }
 
     [Required]
-    public Guid UserId { get; set; }
+    public Guid ProjectId { get; set; }
+
+    public bool PenaltyApplied { get; set; } = false;
+    public DateTime? PenaltyAppliedAt { get; set; }
 
     [ForeignKey(nameof(ReportRequestId))]
     public ReportRequest ReportRequest { get; set; } = default!;
 
-    [ForeignKey(nameof(UserId))]
-    public User User { get; set; } = default!;
+    [ForeignKey(nameof(ProjectId))]
+    public Project Project { get; set; } = default!;
 }

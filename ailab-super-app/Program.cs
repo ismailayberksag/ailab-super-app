@@ -103,11 +103,19 @@ namespace ailab_super_app
             builder.Services.AddScoped<IAdminTaskService, AdminTaskService>();
             builder.Services.AddScoped<IRoomAccessService, RoomAccessService>();
             builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
+            builder.Services.AddScoped<FirebaseStorageService>();
+            builder.Services.AddScoped<IReportService, ReportService>();
             
             // Background Services
             builder.Services.AddHostedService<LabAutoCheckoutWorker>();
             builder.Services.AddHostedService<DeadlinePenaltyWorker>();
             builder.Services.AddHostedService<MonthlyScoreResetWorker>();
+
+            // Authorization Policies
+            builder.Services.AddAuthorization(options =>
+            {
+                options.AddPolicy("RequireAdmin", policy => policy.RequireRole("Admin"));
+            });
 
             // Controllers
             builder.Services.AddControllers();

@@ -6,14 +6,10 @@ public class ReportRequest
 {
     public Guid Id { get; set; }
 
-    // Proje bazlı talep olmayabilir (bireysel talep)
-    public Guid? ProjectId { get; set; }
-    public Project? Project { get; set; }
-
-    //Talebi açan kullanıcı zorunlu (null olamaz)
-    public Guid RequestedBy { get; set; }
-    [ForeignKey(nameof(RequestedBy))]
-    public User RequestedByUser { get; set; } = default!;
+    // Talebi açan kullanıcı (Admin)
+    public Guid CreatedBy { get; set; }
+    [ForeignKey(nameof(CreatedBy))]
+    public User CreatedByUser { get; set; } = default!;
 
     public string Title { get; set; } = string.Empty;
     public string? Description { get; set; }
@@ -25,14 +21,14 @@ public class ReportRequest
     public DateTime? PeriodStart { get; set; }
     public DateTime? PeriodEnd { get; set; }
 
-    //Talebin durumu
+    // Talebin genel durumu (Örn: Aktif, Kapanmış)
     public ReportRequestStatus Status { get; set; } = ReportRequestStatus.Pending;
 
-    //Bu talebe yüklenen PDF'ler birden fazla olabilir
+    // Bu talebe istinaden yüklenen tüm raporlar
     public ICollection<Report> SubmittedReports { get; set; } = new List<Report>();
 
-    //Bireysel taleplerde hedef kullanıcılar (M2M)
-    public ICollection<ReportRequestUser> TargetUsers { get; set; } = new List<ReportRequestUser>();
+    // Talebin atandığı projeler
+    public ICollection<ReportRequestProject> TargetProjects { get; set; } = new List<ReportRequestProject>();
 
     public bool IsDeleted { get; set; } = false;
     public DateTime? DeletedAt { get; set; }

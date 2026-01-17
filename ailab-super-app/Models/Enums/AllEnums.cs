@@ -17,10 +17,12 @@ public enum AnnouncementScope
 
 public enum ReportStatus
 {
-    Pending,
+    Draft,
+    Submitted,
+    UnderReview,
     Approved,
     Rejected,
-    Revision
+    Expired
 }
 
 public enum UserStatus

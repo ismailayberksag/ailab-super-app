@@ -80,6 +80,7 @@ namespace ailab_super_app.Services
             return new UserDto
             {
                 Id = user.Id,
+                UserName = user.UserName!,
                 Email = user.Email!,
                 SchoolNumber = user.SchoolNumber,
                 FullName = user.FullName,

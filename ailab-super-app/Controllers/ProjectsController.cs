@@ -94,6 +94,25 @@ public class ProjectsController : ControllerBase
     }
 
     /// <summary>
+    /// Get specific user's projects (Admin only)
+    /// </summary>
+    [HttpGet("user/{userId}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<List<ProjectListDto>>> GetProjectsByUserId(Guid userId)
+    {
+        try
+        {
+            var projects = await _projectService.GetUserProjectsAsync(userId);
+            return Ok(projects);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Get user projects by admin error: {ex.Message}");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Create a new project (Admin only)
     /// </summary>
     [HttpPost]
