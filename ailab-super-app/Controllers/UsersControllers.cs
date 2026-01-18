@@ -13,11 +13,13 @@ namespace ailab_super_app.Controllers
     public class UsersController : ControllerBase
     {
         private readonly IUserService _userService;
+        private readonly IProfileService _profileService;
         private readonly ILogger<UsersController> _logger;
 
-        public UsersController(IUserService userService, ILogger<UsersController> logger)
+        public UsersController(IUserService userService, IProfileService profileService, ILogger<UsersController> logger)
         {
             _userService = userService;
+            _profileService = profileService;
             _logger = logger;
         }
 
@@ -89,6 +91,24 @@ namespace ailab_super_app.Controllers
             catch (Exception ex)
             {
                 _logger.LogError($"Update user status hatası: {ex.Message}");
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
+        /// <summary>
+        /// Update user profile image (Admin only)
+        /// </summary>
+        [HttpPut("{id}/image")]
+        public async Task<IActionResult> UpdateUserImage(Guid id, [FromBody] UpdateProfileImageDto dto)
+        {
+            try
+            {
+                await _profileService.UpdateProfileImageAsync(id, dto);
+                return Ok(new { message = "Kullanıcı profil fotoğrafı başarıyla güncellendi.", url = dto.ProfileImageUrl });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"Update user image by admin error: {ex.Message}");
                 return BadRequest(new { message = ex.Message });
             }
         }

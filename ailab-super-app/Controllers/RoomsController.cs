@@ -156,6 +156,25 @@ namespace ailab_super_app.Controllers
                     return BadRequest(new { message = ex.Message });
                 }
             }
+
+            /// <summary>
+            /// Get lab usage statistics for a specific user (Admin only).
+            /// </summary>
+            [HttpGet("stats/user/{userId}")]
+            [Authorize(Roles = "Admin")]
+            public async Task<ActionResult<UserLabStatsDto>> GetUserLabStats(Guid userId)
+            {
+                try
+                {
+                    var stats = await _roomAccessService.GetUserLabStatsAsync(userId);
+                    return Ok(stats);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Get user lab stats by admin error: {ex.Message}");
+                    return BadRequest(new { message = ex.Message });
+                }
+            }
         
             /// <summary>
             /// Get lab occupancy statistics for current user's teammates.
