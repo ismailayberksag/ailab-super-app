@@ -17,6 +17,7 @@ public interface IProjectService
     Task<ProjectMemberDto> AddMemberAsync(Guid projectId, AddProjectMemberDto dto, Guid addedBy);
     Task RemoveMemberAsync(Guid projectId, Guid userId, Guid removedBy);
     Task<ProjectMemberDto> UpdateMemberRoleAsync(Guid projectId, Guid userId, UpdateProjectMemberRoleDto dto, Guid updatedBy);
+    Task TransferOwnershipAsync(Guid projectId, TransferOwnershipDto dto, Guid requestedBy);
 
     // User Projects
     Task<List<ProjectListDto>> GetUserProjectsAsync(Guid userId, string? roleFilter = null);

@@ -10,5 +10,7 @@ public class CreateProjectDto
 
     [MaxLength(1000, ErrorMessage = "Açıklama maksimum 1000 karakter olabilir")]
     public string? Description { get; set; }
-}
 
+    [Required(ErrorMessage = "Captain kullanıcı ID'si zorunludur")]
+    public Guid CaptainUserId { get; set; }
+}

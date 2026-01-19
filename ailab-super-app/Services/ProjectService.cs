@@ -1,7 +1,8 @@
+using ailab_super_app.Common.Constants;
 using ailab_super_app.Common.Exceptions;
 using ailab_super_app.Data;
 using ailab_super_app.DTOs.Project;
-using ailab_super_app.Helpers; // GetTurkeyTime için eklendi
+using ailab_super_app.Helpers;
 using ailab_super_app.Models;
 using ailab_super_app.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
@@ -51,7 +52,7 @@ public class ProjectService : IProjectService
                 .ToListAsync();
 
             var captainNames = members
-                .Where(pm => pm.Role == "Captain")
+                .Where(pm => pm.Role == ProjectRoles.Captain)
                 .Select(pm => pm.User.FullName ?? pm.User.UserName ?? "Unknown")
                 .ToList();
 
@@ -112,20 +113,55 @@ public class ProjectService : IProjectService
 
     public async Task<ProjectDto> CreateProjectAsync(CreateProjectDto dto, Guid createdBy)
     {
-        var now = DateTimeHelper.GetTurkeyTime();
-        var project = new Project
+        // 1. Captain user'ın varlığını kontrol et
+        var captainUser = await _userManager.FindByIdAsync(dto.CaptainUserId.ToString());
+        if (captainUser == null || captainUser.IsDeleted)
         {
-            Name = dto.Name,
-            Description = dto.Description,
-            CreatedBy = createdBy,
-            CreatedAt = now,
-            UpdatedAt = now
-        };
+            throw new NotFoundException($"Captain olarak atanacak kullanıcı bulunamadı: {dto.CaptainUserId}");
+        }
 
-        _context.Projects.Add(project);
-        await _context.SaveChangesAsync();
+        // 2. Transaction başlat
+        using var transaction = await _context.Database.BeginTransactionAsync();
 
-        return await MapToProjectDto(project);
+        try
+        {
+            var now = DateTimeHelper.GetTurkeyTime();
+
+            // 3. Proje oluştur
+            var project = new Project
+            {
+                Name = dto.Name,
+                Description = dto.Description,
+                CreatedBy = createdBy,
+                CreatedAt = now,
+                UpdatedAt = now
+            };
+
+            _context.Projects.Add(project);
+            await _context.SaveChangesAsync();
+
+            // 4. Captain'i projeye ekle
+            var captainMember = new ProjectMember
+            {
+                ProjectId = project.Id,
+                UserId = dto.CaptainUserId,
+                Role = ProjectRoles.Captain,
+                AddedAt = now
+            };
+
+            _context.ProjectMembers.Add(captainMember);
+            await _context.SaveChangesAsync();
+
+            // 5. Transaction commit
+            await transaction.CommitAsync();
+
+            return await MapToProjectDto(project);
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<ProjectDto> UpdateProjectAsync(Guid projectId, UpdateProjectDto dto, Guid requestingUserId)
@@ -221,7 +257,18 @@ public class ProjectService : IProjectService
 
         if (!isAdmin && !isCaptain) throw new UnauthorizedAccessException("Bu işlem için Captain yetkisi gerekli");
 
-        if (dto.Role != "Captain" && dto.Role != "Member") throw new BadRequestException("Role 'Captain' veya 'Member' olmalıdır");
+        if (dto.Role != ProjectRoles.Captain && dto.Role != ProjectRoles.Member)
+            throw new BadRequestException($"Role '{ProjectRoles.Captain}' veya '{ProjectRoles.Member}' olmalıdır");
+
+        // Captain Uniqueness Check
+        if (dto.Role == ProjectRoles.Captain)
+        {
+            var hasCaptain = await _context.ProjectMembers
+                .AnyAsync(pm => pm.ProjectId == projectId && pm.Role == ProjectRoles.Captain && !pm.IsDeleted);
+
+            if (hasCaptain)
+                throw new InvalidOperationException("Bu projede zaten bir Captain var. Sadece bir Captain olabilir.");
+        }
 
         var user = await _userManager.FindByIdAsync(dto.UserId.ToString());
         if (user == null || user.IsDeleted) throw new NotFoundException("Kullanıcı bulunamadı");
@@ -274,18 +321,16 @@ public class ProjectService : IProjectService
 
         if (member == null) throw new NotFoundException("Üye bulunamadı");
 
+        // Captain Protection
+        if (member.Role == ProjectRoles.Captain)
+        {
+            throw new InvalidOperationException("Captain rolündeki kişi projeden çıkarılamaz. Önce ownership transfer yapın.");
+        }
+
         var hasAssignedTasks = await _context.Tasks
             .AnyAsync(t => t.ProjectId == projectId && t.AssigneeId == userId && !t.IsDeleted);
 
         if (hasAssignedTasks) throw new BadRequestException("Üyenin atanmış taskları var.");
-
-        if (member.Role == "Captain")
-        {
-            var captainCount = await _context.ProjectMembers
-                .CountAsync(pm => pm.ProjectId == projectId && pm.Role == "Captain" && !pm.IsDeleted);
-
-            if (captainCount <= 1) throw new BadRequestException("Son Captain kaldırılamaz");
-        }
 
         member.IsDeleted = true;
         member.DeletedAt = now;
@@ -304,7 +349,8 @@ public class ProjectService : IProjectService
         var isAdmin = await IsAdminAsync(updatedBy);
         if (!isAdmin) throw new UnauthorizedAccessException("Sadece Admin rol değiştirebilir");
 
-        if (dto.Role != "Captain" && dto.Role != "Member") throw new BadRequestException("Role 'Captain' veya 'Member' olmalıdır");
+        if (dto.Role != ProjectRoles.Captain && dto.Role != ProjectRoles.Member)
+            throw new BadRequestException($"Role '{ProjectRoles.Captain}' veya '{ProjectRoles.Member}' olmalıdır");
 
         var member = await _context.ProjectMembers
             .Include(pm => pm.User)
@@ -312,12 +358,24 @@ public class ProjectService : IProjectService
 
         if (member == null) throw new NotFoundException("Üye bulunamadı");
 
-        if (member.Role == "Captain" && dto.Role == "Member")
+        // Captain Uniqueness Check during Update
+        if (member.Role == ProjectRoles.Member && dto.Role == ProjectRoles.Captain)
         {
-            var captainCount = await _context.ProjectMembers
-                .CountAsync(pm => pm.ProjectId == projectId && pm.Role == "Captain" && !pm.IsDeleted);
+            var hasCaptain = await _context.ProjectMembers
+                .AnyAsync(pm => pm.ProjectId == projectId && pm.Role == ProjectRoles.Captain && !pm.IsDeleted);
 
-            if (captainCount <= 1) throw new BadRequestException("Son Captain Member yapılamaz");
+            if (hasCaptain)
+                throw new InvalidOperationException("Bu projede zaten bir Captain var. Başka birini Captain yapamazsınız.");
+        }
+
+        if (member.Role == ProjectRoles.Captain && dto.Role == ProjectRoles.Member)
+        {
+             // Projede en az 1 kaptan kalmalı kontrolü yapabiliriz ama zaten Captain transfer mekanizması var.
+             // Buradan direct Member'a düşürmek yerine TransferOwnership kullanılması daha doğru olur.
+             // Ancak Admin'in acil durumda yetkiyi alması gerekebilir. O yüzden izin veriyoruz
+             // fakat sistemin kaptansız kalma riskini göze alıyoruz (Admin'in bildiği varsayımıyla).
+             // Yine de uyarı niteliğinde:
+             _logger.LogWarning($"Admin {updatedBy} removed Captain role from {userId} in project {projectId}");
         }
 
         member.Role = dto.Role;
@@ -333,6 +391,52 @@ public class ProjectService : IProjectService
             Role = member.Role,
             AddedAt = member.AddedAt
         };
+    }
+
+    public async Task TransferOwnershipAsync(Guid projectId, TransferOwnershipDto dto, Guid requestedBy)
+    {
+        // 1. Yetki kontrolü (Sadece Admin)
+        var isAdmin = await IsAdminAsync(requestedBy);
+        if (!isAdmin) throw new UnauthorizedAccessException("Sadece Admin ownership transfer işlemi yapabilir.");
+
+        var project = await _context.Projects.FindAsync(projectId);
+        if (project == null) throw new NotFoundException("Proje bulunamadı");
+
+        // 2. Mevcut Captain kontrolü
+        var currentCaptain = await _context.ProjectMembers
+            .FirstOrDefaultAsync(pm => pm.ProjectId == projectId && pm.UserId == dto.CurrentCaptainId && !pm.IsDeleted);
+
+        if (currentCaptain == null || currentCaptain.Role != ProjectRoles.Captain)
+            throw new InvalidOperationException("Belirtilen kullanıcı bu projenin aktif Captain'ı değil");
+
+        // 3. Yeni Captain kontrolü
+        var newCaptain = await _context.ProjectMembers
+            .FirstOrDefaultAsync(pm => pm.ProjectId == projectId && pm.UserId == dto.NewCaptainId && !pm.IsDeleted);
+
+        if (newCaptain == null)
+            throw new InvalidOperationException("Yeni Captain atanacak kişi projenin üyesi olmalıdır");
+
+        if (newCaptain.Role == ProjectRoles.Captain)
+            throw new InvalidOperationException("Bu kullanıcı zaten Captain");
+
+        // 4. Transaction ile role swap
+        using var transaction = await _context.Database.BeginTransactionAsync();
+
+        try
+        {
+            currentCaptain.Role = ProjectRoles.Member;
+            newCaptain.Role = ProjectRoles.Captain;
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            _logger.LogInformation($"Ownership transferred from {dto.CurrentCaptainId} to {dto.NewCaptainId} in project {projectId}");
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            throw;
+        }
     }
 
     public async Task<List<ProjectListDto>> GetUserProjectsAsync(Guid userId, string? roleFilter = null)
@@ -361,7 +465,7 @@ public class ProjectService : IProjectService
                 .ToListAsync();
 
             var captainNames = members
-                .Where(pm => pm.Role == "Captain")
+                .Where(pm => pm.Role == ProjectRoles.Captain)
                 .Select(pm => pm.User.FullName ?? pm.User.UserName ?? "Unknown")
                 .ToList();
 
@@ -410,7 +514,7 @@ public class ProjectService : IProjectService
         return await _context.ProjectMembers
             .AnyAsync(pm => pm.ProjectId == projectId
                          && pm.UserId == userId
-                         && pm.Role == "Captain"
+                         && pm.Role == ProjectRoles.Captain
                          && !pm.IsDeleted);
     }
 
@@ -430,7 +534,7 @@ public class ProjectService : IProjectService
             .ToListAsync();
 
         var captains = members
-            .Where(pm => pm.Role == "Captain")
+            .Where(pm => pm.Role == ProjectRoles.Captain)
             .Select(pm => new ProjectMemberDto
             {
                 Id = pm.Id,
@@ -443,7 +547,7 @@ public class ProjectService : IProjectService
             }).ToList();
 
         var regularMembers = members
-            .Where(pm => pm.Role == "Member")
+            .Where(pm => pm.Role == ProjectRoles.Member)
             .Select(pm => new ProjectMemberDto
             {
                 Id = pm.Id,

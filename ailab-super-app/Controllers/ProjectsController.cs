@@ -208,6 +208,40 @@ public class ProjectsController : ControllerBase
     }
 
     /// <summary>
+    /// Transfer project ownership (Admin only)
+    /// </summary>
+    [HttpPost("{id}/transfer-ownership")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> TransferOwnership(Guid id, [FromBody] TransferOwnershipDto dto)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            if (!userId.HasValue) return Unauthorized();
+
+            await _projectService.TransferOwnershipAsync(id, dto, userId.Value);
+            return Ok(new { message = "Ownership başarıyla transfer edildi" });
+        }
+        catch (NotFoundException ex)
+        {
+            return NotFound(new { message = ex.Message });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(new { message = ex.Message });
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return StatusCode(403, new { message = ex.Message });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Transfer ownership error: {ex.Message}");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
     /// Get project members (Admin or Project Member)
     /// </summary>
     [HttpGet("{id}/members")]
