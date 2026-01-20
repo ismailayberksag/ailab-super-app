@@ -276,7 +276,9 @@ public class ProjectService : IProjectService
         if (user.Status != UserStatus.Active) throw new BadRequestException("Aktif olmayan kullanıcı projeye eklenemez");
 
         // ÖNEMLİ: Silinmiş veya silinmemiş fark etmeksizin kaydı kontrol et
+        // .IgnoreQueryFilters() eklenerek global soft-delete filtresi devre dışı bırakılır.
         var member = await _context.ProjectMembers
+            .IgnoreQueryFilters()
             .FirstOrDefaultAsync(pm => pm.ProjectId == projectId && pm.UserId == dto.UserId);
 
         if (member != null)
