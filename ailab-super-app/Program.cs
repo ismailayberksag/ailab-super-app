@@ -1,8 +1,8 @@
-﻿using ailab_super_app.Data;
+using ailab_super_app.Data;
 using ailab_super_app.Models;
 using ailab_super_app.Configuration;
 using ailab_super_app.Services;
-using ailab_super_app.Services.Background; // Yeni eklenen
+using ailab_super_app.Services.Background;
 using ailab_super_app.Services.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -10,7 +10,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.AspNetCore.HttpOverrides;
 using System.Text;
-//deneme commit
+using FirebaseAdmin;
+using Google.Apis.Auth.OAuth2;
 
 namespace ailab_super_app
 {
@@ -27,7 +28,6 @@ namespace ailab_super_app
                     builder.Configuration.GetConnectionString("DefaultConnection"),
                     npgsqlOptions => npgsqlOptions.MigrationsHistoryTable("__EFMigrationsHistory", "app")
                 );
-                // Pending model changes warning'ini suppress et (production için)
                 options.ConfigureWarnings(warnings =>
                     warnings.Ignore(Microsoft.EntityFrameworkCore.Diagnostics.RelationalEventId.PendingModelChangesWarning)
                 );
@@ -124,7 +124,7 @@ namespace ailab_super_app
             builder.Services.AddEndpointsApiExplorer();
             builder.Services.AddSwaggerGen();
 
-            // CORS (Frontend için - gerekirse ayarla)
+            // CORS
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policy =>
@@ -135,7 +135,7 @@ namespace ailab_super_app
                         "https://localhost:7258",
                         "http://localhost:7258",
                         "https://api.ailab.org.tr",
-                        "http://192.168.5.172:5000",  // ← Raspberry Pi)  // Sadece belirli domainler
+                        "http://192.168.5.172:5000",
                         "http://192.168.5.172:8080")
                           .AllowAnyMethod()
                           .AllowAnyHeader()
@@ -143,15 +143,29 @@ namespace ailab_super_app
                 });
             });
 
-            // Kestrel'i 0.0.0.0 üzerinden dinlemesi için yapılandır (reverse proxy arkasında)
+            // Kestrel Configuration
             builder.WebHost.ConfigureKestrel(options =>
             {
-                options.ListenAnyIP(6161); // Sadece HTTP (CloudPanel/Nginx SSL sonlandırma yapacak)
+                options.ListenAnyIP(6161);
+            });
+
+            // Firebase Admin SDK Initialize
+            var firebaseCredentialPath = Path.Combine(Directory.GetCurrentDirectory(), "firebase-service-account.json");
+
+            if (!File.Exists(firebaseCredentialPath))
+            {
+                // Development ortamında dosya olmayabilir uyarısı yerine gereksinim gereği hata fırlatıyoruz
+                throw new FileNotFoundException("Firebase service account file not found", firebaseCredentialPath);
+            }
+
+            FirebaseApp.Create(new AppOptions
+            {
+                Credential = GoogleCredential.FromFile(firebaseCredentialPath)
             });
 
             var app = builder.Build();
 
-            // Database migration'ı otomatik çalıştır
+            // Database Migration
             using (var scope = app.Services.CreateScope())
             {
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
@@ -161,7 +175,6 @@ namespace ailab_super_app
                 {
                     logger.LogInformation("Veritabanı migration'ları kontrol ediliyor...");
                     
-                    // Pending migration'ları kontrol et
                     var pendingMigrations = db.Database.GetPendingMigrations().ToList();
                     if (pendingMigrations.Any())
                     {
@@ -185,7 +198,7 @@ namespace ailab_super_app
             }
 
             // Middleware
-            app.UseForwardedHeaders(); // Reverse proxy için (X-Forwarded-For, X-Forwarded-Proto)
+            app.UseForwardedHeaders();
 
             if (app.Environment.IsDevelopment())
             {
@@ -197,9 +210,6 @@ namespace ailab_super_app
                 app.UseSwagger();
                 app.UseSwaggerUI();
             }
-
-            // HTTPS redirection CloudPanel/Nginx tarafından yapılacak
-            // app.UseHttpsRedirection(); // Reverse proxy arkasında gereksiz
 
             app.UseCors("AllowAll");
 
