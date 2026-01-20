@@ -105,6 +105,48 @@ namespace ailab_super_app
                     ValidAudience = firebaseProjectId,
                     ValidateLifetime = true
                 };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        // Firebase token içindeki "user_id" (uid) bilgisini al
+                        var firebaseUid = context.Principal?.FindFirst("user_id")?.Value;
+
+                        if (!string.IsNullOrEmpty(firebaseUid))
+                        {
+                            var userManager = context.HttpContext.RequestServices.GetRequiredService<UserManager<User>>();
+                            var dbContext = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+
+                            // Kullanıcıyı veritabanında FirebaseUid ile bul
+                            var user = await dbContext.Users
+                                .AsNoTracking()
+                                .FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
+
+                            if (user != null)
+                            {
+                                var roles = await userManager.GetRolesAsync(user);
+                                var claimsIdentity = context.Principal?.Identity as System.Security.Claims.ClaimsIdentity;
+
+                                if (claimsIdentity != null)
+                                {
+                                    // 1. NameIdentifier claim'ini bizim veritabanındaki asıl Guid ID ile ez/ekle
+                                    // Controller'lardaki GetCurrentUserId() metodunun doğru çalışması için bu şart.
+                                    var existingNameId = claimsIdentity.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+                                    if (existingNameId != null) claimsIdentity.RemoveClaim(existingNameId);
+                                    
+                                    claimsIdentity.AddClaim(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.NameIdentifier, user.Id.ToString()));
+
+                                    // 2. Rolleri ekle
+                                    foreach (var role in roles)
+                                    {
+                                        claimsIdentity.AddClaim(new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, role));
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
             });
 
             // Authorization
