@@ -21,9 +21,8 @@ namespace ailab_super_app.Migrations
                 schema: "app",
                 table: "report_requests");
 
-            migrationBuilder.DropTable(
-                name: "room_accesses",
-                schema: "app");
+            // Güvenli silme: Tablo varsa sil, yoksa hata verme
+            migrationBuilder.Sql("DROP TABLE IF EXISTS app.room_accesses;");
 
             migrationBuilder.DropIndex(
                 name: "IX_report_requests_RequestedBy",
