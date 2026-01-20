@@ -85,7 +85,8 @@ namespace ailab_super_app.Controllers
         {
             try
             {
-                var user = await _firebaseAuthService.AuthenticateWithFirebaseAsync(request.IdToken);
+                // Değişiklik: request.IdToken yerine request objesinin kendisi gönderiliyor
+                var user = await _firebaseAuthService.AuthenticateWithFirebaseAsync(request);
 
                 var roles = await _userManager.GetRolesAsync(user);
 

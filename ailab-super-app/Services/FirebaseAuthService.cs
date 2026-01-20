@@ -6,6 +6,7 @@ using ailab_super_app.Models;
 using ailab_super_app.Services.Interfaces;
 using ailab_super_app.Models.Enums;
 using ailab_super_app.Helpers;
+using ailab_super_app.DTOs.Auth; // Eklendi
 
 namespace ailab_super_app.Services
 {
@@ -25,13 +26,13 @@ namespace ailab_super_app.Services
             _logger = logger;
         }
 
-        public async Task<User> AuthenticateWithFirebaseAsync(string idToken)
+        public async Task<User> AuthenticateWithFirebaseAsync(FirebaseLoginRequest request)
         {
             try
             {
                 // 1. Firebase token'ı doğrula
                 var decodedToken = await FirebaseAuth.DefaultInstance
-                    .VerifyIdTokenAsync(idToken);
+                    .VerifyIdTokenAsync(request.IdToken);
 
                 var firebaseUid = decodedToken.Uid;
                 var email = decodedToken.Claims.ContainsKey("email")
@@ -45,7 +46,7 @@ namespace ailab_super_app.Services
 
                 // 2. Bu Firebase UID ile kullanıcı var mı kontrol et
                 var user = await _context.Users
-                    .IgnoreQueryFilters() // Silinmiş kullanıcıları da kontrol et (belki geri dönmüştür?) - İsteğe bağlı
+                    .IgnoreQueryFilters()
                     .FirstOrDefaultAsync(u => u.FirebaseUid == firebaseUid);
 
                 if (user != null)
@@ -53,11 +54,10 @@ namespace ailab_super_app.Services
                     if (user.IsDeleted) throw new Exception("Bu hesap silinmiş.");
                     
                     _logger.LogInformation("User authenticated with Firebase UID: {FirebaseUid}", firebaseUid);
-                    return user; // Zaten Firebase'e geçmiş kullanıcı
+                    return user;
                 }
 
                 // 3. Email ile kullanıcı var mı kontrol et (Migration case)
-                // UserManager default olarak silinmişleri getirmez (eğer filter varsa)
                 user = await _userManager.FindByEmailAsync(email);
                 
                 if (user != null)
@@ -66,13 +66,11 @@ namespace ailab_super_app.Services
 
                     if (user.AuthProvider == AuthProvider.Legacy)
                     {
-                        // Legacy kullanıcıyı Firebase'e otomatik migrate et
                         _logger.LogInformation("Auto-migrating user to Firebase: {Email}", email);
                         return await MigrateUserToFirebaseAsync(user.Id, firebaseUid);
                     }
                     else if (user.AuthProvider == AuthProvider.Firebase)
                     {
-                        // Kullanıcı Firebase provider ama UID set edilmemiş (Veri tutarsızlığı düzeltme)
                         _logger.LogWarning("Fixing missing FirebaseUid for user: {Email}", email);
                         user.FirebaseUid = firebaseUid;
                         await _context.SaveChangesAsync();
@@ -81,13 +79,22 @@ namespace ailab_super_app.Services
                 }
 
                 // 4. Yeni kullanıcı - Firebase'den otomatik kayıt
+                // BURADA EK BİLGİLERİ KULLANIYORUZ
                 _logger.LogInformation("Creating new user from Firebase: {Email}", email);
+
+                // Validasyon: Yeni kayıt için zorunlu alanlar
+                if (string.IsNullOrEmpty(request.FullName))
+                {
+                    // Frontend'e not: Register ise FullName gönderilmeli
+                    throw new Exception("Yeni kayıt için Ad Soyad (FullName) zorunludur.");
+                }
                 
                 var now = DateTimeHelper.GetTurkeyTime();
                 user = new User
                 {
                     Id = Guid.NewGuid(),
-                    UserName = email, // Username email olarak başlar, kullanıcı sonra değiştirebilir
+                    // UserName varsa onu, yoksa email'i kullan
+                    UserName = !string.IsNullOrEmpty(request.UserName) ? request.UserName : email,
                     Email = email,
                     EmailConfirmed = decodedToken.Claims.ContainsKey("email_verified")
                         && (bool)decodedToken.Claims["email_verified"],
@@ -96,10 +103,21 @@ namespace ailab_super_app.Services
                     Status = UserStatus.Active,
                     CreatedAt = now,
                     UpdatedAt = now,
-                    ProfileImageUrl = "https://firebasestorage.googleapis.com/v0/b/ailab-super-app.firebasestorage.app/o/default.webp?alt=media"
+                    ProfileImageUrl = "https://firebasestorage.googleapis.com/v0/b/ailab-super-app.firebasestorage.app/o/default.webp?alt=media",
+                    
+                    // EK ALANLAR
+                    FullName = request.FullName,
+                    SchoolNumber = request.SchoolNumber,
+                    PhoneNumber = request.PhoneNumber,
+                    Phone = request.PhoneNumber // Alias
                 };
 
-                // Şifresiz kullanıcı oluştur
+                // UserName benzersizlik kontrolü
+                if (await _userManager.FindByNameAsync(user.UserName) != null)
+                {
+                     throw new Exception($"Kullanıcı adı '{user.UserName}' zaten kullanılıyor.");
+                }
+
                 var result = await _userManager.CreateAsync(user);
                 
                 if (!result.Succeeded)
@@ -108,7 +126,6 @@ namespace ailab_super_app.Services
                     throw new Exception($"Failed to create user: {errors}");
                 }
 
-                // Varsayılan rol ata
                 await _userManager.AddToRoleAsync(user, "Member");
 
                 return user;
@@ -131,7 +148,6 @@ namespace ailab_super_app.Services
                 throw new Exception($"User not found: {userId}");
             }
 
-            // KRİTİK: Sadece auth bilgileri değişiyor, diğer veriler KORUNUYOR
             user.FirebaseUid = firebaseUid;
             user.AuthProvider = AuthProvider.Firebase;
             user.MigratedToFirebaseAt = DateTimeHelper.GetTurkeyTime();
@@ -149,7 +165,6 @@ namespace ailab_super_app.Services
         {
             try
             {
-                // Firebase'de kullanıcı oluştur
                 var userRecord = await FirebaseAuth.DefaultInstance.CreateUserAsync(new UserRecordArgs
                 {
                     Email = email,
@@ -157,7 +172,6 @@ namespace ailab_super_app.Services
                     EmailVerified = false
                 });
 
-                // Password reset linki oluştur
                 var resetLink = await FirebaseAuth.DefaultInstance
                     .GeneratePasswordResetLinkAsync(email);
 
