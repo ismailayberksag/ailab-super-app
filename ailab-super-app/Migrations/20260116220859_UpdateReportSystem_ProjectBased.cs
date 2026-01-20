@@ -34,15 +34,9 @@ namespace ailab_super_app.Migrations
                 schema: "app",
                 table: "report_requests");
 
-            migrationBuilder.DropColumn(
-                name: "CardUid",
-                schema: "app",
-                table: "lab_entries");
-
-            migrationBuilder.DropColumn(
-                name: "EntryType",
-                schema: "app",
-                table: "lab_entries");
+            // Güvenli kolon silme (IF EXISTS)
+            migrationBuilder.Sql("ALTER TABLE app.lab_entries DROP COLUMN IF EXISTS \"CardUid\";");
+            migrationBuilder.Sql("ALTER TABLE app.lab_entries DROP COLUMN IF EXISTS \"EntryType\";");
 
             migrationBuilder.RenameColumn(
                 name: "AvatarUrl",
