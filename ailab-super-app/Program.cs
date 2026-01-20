@@ -58,13 +58,27 @@ namespace ailab_super_app
 
             var key = Encoding.UTF8.GetBytes(jwtSettings.Secret);
 
-            // JWT Authentication
+            // Dual Authentication (Legacy + Firebase)
             builder.Services.AddAuthentication(options =>
             {
-                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultAuthenticateScheme = "MultiScheme";
+                options.DefaultChallengeScheme = "MultiScheme";
             })
-            .AddJwtBearer(options =>
+            .AddPolicyScheme("MultiScheme", "Multi Auth Scheme", options =>
+            {
+                options.ForwardDefaultSelector = context =>
+                {
+                    var authHeader = context.Request.Headers["Authorization"].FirstOrDefault();
+                    if (authHeader?.StartsWith("Bearer ") == true)
+                    {
+                        var token = authHeader.Substring("Bearer ".Length).Trim();
+                        // Firebase token'lar genelde çok uzundur (>500 karakter güvenli bir sınır)
+                        return token.Length > 500 ? "Firebase" : "Legacy";
+                    }
+                    return "Legacy";
+                };
+            })
+            .AddJwtBearer("Legacy", options =>
             {
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
@@ -76,6 +90,19 @@ namespace ailab_super_app
                     ValidAudience = jwtSettings?.Audience,
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.Zero
+                };
+            })
+            .AddJwtBearer("Firebase", options =>
+            {
+                var firebaseProjectId = builder.Configuration["Firebase:ProjectId"];
+                options.Authority = $"https://securetoken.google.com/{firebaseProjectId}";
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidIssuer = $"https://securetoken.google.com/{firebaseProjectId}",
+                    ValidateAudience = true,
+                    ValidAudience = firebaseProjectId,
+                    ValidateLifetime = true
                 };
             });
 
@@ -104,6 +131,7 @@ namespace ailab_super_app
             builder.Services.AddScoped<IRoomAccessService, RoomAccessService>();
             builder.Services.AddScoped<IAnnouncementService, AnnouncementService>();
             builder.Services.AddScoped<FirebaseStorageService>();
+            builder.Services.AddScoped<IFirebaseAuthService, FirebaseAuthService>(); // Eklendi
             builder.Services.AddScoped<IReportService, ReportService>();
             
             // Background Services
