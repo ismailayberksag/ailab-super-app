@@ -108,20 +108,9 @@ namespace ailab_super_app.Migrations
                 oldType: "uuid",
                 oldNullable: true);
 
-            migrationBuilder.AddColumn<string>(
-                name: "Description",
-                schema: "app",
-                table: "reports",
-                type: "text",
-                nullable: true);
-
-            migrationBuilder.AddColumn<bool>(
-                name: "IsActive",
-                schema: "app",
-                table: "reports",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
+            // Güvenli AddColumn: reports ve report_requests
+            migrationBuilder.Sql("ALTER TABLE app.reports ADD COLUMN IF NOT EXISTS \"Description\" text;");
+            migrationBuilder.Sql("ALTER TABLE app.reports ADD COLUMN IF NOT EXISTS \"IsActive\" boolean NOT NULL DEFAULT false;");
 
             migrationBuilder.AlterColumn<DateTime>(
                 name: "DueDate",
@@ -132,70 +121,19 @@ namespace ailab_super_app.Migrations
                 oldClrType: typeof(DateTime),
                 oldType: "timestamp with time zone");
 
-            migrationBuilder.AddColumn<int>(
-                name: "Status",
-                schema: "app",
-                table: "report_requests",
-                type: "integer",
-                nullable: false,
-                defaultValue: 0);
+            migrationBuilder.Sql("ALTER TABLE app.report_requests ADD COLUMN IF NOT EXISTS \"Status\" integer NOT NULL DEFAULT 0;");
+            migrationBuilder.Sql("ALTER TABLE app.physical_buttons ADD COLUMN IF NOT EXISTS \"RoomId\" uuid NOT NULL DEFAULT '00000000-0000-0000-0000-000000000000';");
 
-            migrationBuilder.AddColumn<Guid>(
-                name: "RoomId",
-                schema: "app",
-                table: "physical_buttons",
-                type: "uuid",
-                nullable: false,
-                defaultValue: new Guid("00000000-0000-0000-0000-000000000000"));
+            // Güvenli AddColumn: lab_entries
+            migrationBuilder.Sql("ALTER TABLE app.lab_entries ADD COLUMN IF NOT EXISTS \"DurationMinutes\" integer;");
+            migrationBuilder.Sql("ALTER TABLE app.lab_entries ADD COLUMN IF NOT EXISTS \"ExitTime\" timestamp with time zone;");
+            migrationBuilder.Sql("ALTER TABLE app.lab_entries ADD COLUMN IF NOT EXISTS \"Notes\" text;");
+            migrationBuilder.Sql("ALTER TABLE app.lab_entries ADD COLUMN IF NOT EXISTS \"ReaderUid\" text;");
+            migrationBuilder.Sql("ALTER TABLE app.lab_entries ADD COLUMN IF NOT EXISTS \"RfidCardId\" uuid;");
+            migrationBuilder.Sql("ALTER TABLE app.lab_entries ADD COLUMN IF NOT EXISTS \"RoomId\" uuid;");
 
-            migrationBuilder.AddColumn<int>(
-                name: "DurationMinutes",
-                schema: "app",
-                table: "lab_entries",
-                type: "integer",
-                nullable: true);
-
-            migrationBuilder.AddColumn<DateTime>(
-                name: "ExitTime",
-                schema: "app",
-                table: "lab_entries",
-                type: "timestamp with time zone",
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "Notes",
-                schema: "app",
-                table: "lab_entries",
-                type: "text",
-                nullable: true);
-
-            migrationBuilder.AddColumn<string>(
-                name: "ReaderUid",
-                schema: "app",
-                table: "lab_entries",
-                type: "text",
-                nullable: true);
-
-            migrationBuilder.AddColumn<Guid>(
-                name: "RfidCardId",
-                schema: "app",
-                table: "lab_entries",
-                type: "uuid",
-                nullable: true);
-
-            migrationBuilder.AddColumn<Guid>(
-                name: "RoomId",
-                schema: "app",
-                table: "lab_entries",
-                type: "uuid",
-                nullable: true);
-
-            migrationBuilder.AddColumn<Guid>(
-                name: "RoomId",
-                schema: "app",
-                table: "lab_current_occupancy",
-                type: "uuid",
-                nullable: true);
+            // Güvenli AddColumn: lab_current_occupancy
+            migrationBuilder.Sql("ALTER TABLE app.lab_current_occupancy ADD COLUMN IF NOT EXISTS \"RoomId\" uuid;");
 
             migrationBuilder.CreateTable(
                 name: "avatars",
