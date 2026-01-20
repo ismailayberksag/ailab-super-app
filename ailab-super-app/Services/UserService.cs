@@ -3,6 +3,7 @@ using ailab_super_app.DTOs.Statistics;
 using ailab_super_app.DTOs.User;
 using ailab_super_app.Helpers; // GetTurkeyTime için eklendi
 using ailab_super_app.Models;
+using ailab_super_app.Models.Enums; // Eklendi
 using ailab_super_app.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;

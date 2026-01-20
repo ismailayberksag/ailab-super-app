@@ -1,4 +1,4 @@
-﻿using ailab_super_app.Models;
+using ailab_super_app.Models.Enums;
 
 namespace ailab_super_app.DTOs.User;
 

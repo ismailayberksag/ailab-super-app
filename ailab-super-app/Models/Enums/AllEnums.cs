@@ -1,4 +1,4 @@
-﻿namespace ailab_super_app.Models.Enums;
+namespace ailab_super_app.Models.Enums;
 
 public enum TaskStatus
 {
@@ -71,4 +71,10 @@ public enum PlatformType
 {
     Web = 1,
     Mobile = 2
+}
+
+public enum AuthProvider
+{
+    Legacy = 0,      // Mevcut ASP.NET Identity sistemi
+    Firebase = 1     // Firebase Authentication
 }

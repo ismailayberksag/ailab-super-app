@@ -8,7 +8,7 @@ using ailab_super_app.Services.Interfaces;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using TaskStatus = ailab_super_app.Models.Enums.TaskStatus;
-using UserStatus = ailab_super_app.Models.UserStatus;
+using UserStatus = ailab_super_app.Models.Enums.UserStatus;
 
 namespace ailab_super_app.Services;
 

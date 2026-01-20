@@ -1,17 +1,20 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using System.ComponentModel.DataAnnotations;
 
-namespace ailab_super_app.Models;
+using ailab_super_app.Models.Enums; // AuthProvider için eklendi
 
-public enum UserStatus
-{
-    Active,
-    Inactive,
-    Suspended
-}
+namespace ailab_super_app.Models;
 
 public class User : IdentityUser<Guid>  
 {
+    // Firebase Authentication Integration
+    [MaxLength(128)]
+    public string? FirebaseUid { get; set; }
+    
+    public AuthProvider AuthProvider { get; set; } = AuthProvider.Legacy;
+    
+    public DateTime? MigratedToFirebaseAt { get; set; }
+
     [MaxLength(200)]
     public string? FullName { get; set; }
 

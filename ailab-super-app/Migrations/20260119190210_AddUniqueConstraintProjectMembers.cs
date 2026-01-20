@@ -13,23 +13,24 @@ namespace ailab_super_app.Migrations
             // 1. Önce duplicate kayıtları temizle (Varsa)
             // Aynı projede aynı user birden fazla kez varsa, en eski kaydı (MIN Id) tutup diğerlerini siliyoruz.
             // SQLite/SQLServer uyumlu generic yapı kurmaya çalışalım ama raw SQL en temizi.
-            // Aşağıdaki SQL Server (MSSQL) içindir, proje MSSQL kullanıyorsa çalışır.
+            // Aşağıdaki PostgreSQL (Npgsql) içindir.
             migrationBuilder.Sql(@"
                 WITH Duplicates AS (
-                    SELECT Id,
-                           ROW_NUMBER() OVER (PARTITION BY ProjectId, UserId ORDER BY AddedAt) AS RowNum
-                    FROM ProjectMembers
+                    SELECT ""Id"",
+                           ROW_NUMBER() OVER (PARTITION BY ""ProjectId"", ""UserId"" ORDER BY ""AddedAt"") AS RowNum
+                    FROM app.""project_members""
                 )
-                DELETE FROM ProjectMembers
-                WHERE Id IN (
-                    SELECT Id FROM Duplicates WHERE RowNum > 1
+                DELETE FROM app.""project_members""
+                WHERE ""Id"" IN (
+                    SELECT ""Id"" FROM Duplicates WHERE RowNum > 1
                 );
             ");
 
             // 2. Unique Index Ekle
             migrationBuilder.CreateIndex(
                 name: "IX_ProjectMembers_ProjectId_UserId",
-                table: "ProjectMembers",
+                schema: "app",
+                table: "project_members",
                 columns: new[] { "ProjectId", "UserId" },
                 unique: true);
         }
@@ -39,7 +40,8 @@ namespace ailab_super_app.Migrations
         {
             migrationBuilder.DropIndex(
                 name: "IX_ProjectMembers_ProjectId_UserId",
-                table: "ProjectMembers");
+                schema: "app",
+                table: "project_members");
         }
     }
 }

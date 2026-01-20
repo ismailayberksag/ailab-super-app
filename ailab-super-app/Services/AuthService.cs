@@ -1,6 +1,7 @@
 using ailab_super_app.Data;
 using ailab_super_app.DTOs.Auth;
 using ailab_super_app.Models;
+using ailab_super_app.Models.Enums; // Eklendi
 using ailab_super_app.Configuration;
 using ailab_super_app.Helpers; // GetTurkeyTime için eklendi
 using ailab_super_app.Services.Interfaces;
