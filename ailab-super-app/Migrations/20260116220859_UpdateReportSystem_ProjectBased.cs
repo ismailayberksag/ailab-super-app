@@ -38,17 +38,31 @@ namespace ailab_super_app.Migrations
             migrationBuilder.Sql("ALTER TABLE app.lab_entries DROP COLUMN IF EXISTS \"CardUid\";");
             migrationBuilder.Sql("ALTER TABLE app.lab_entries DROP COLUMN IF EXISTS \"EntryType\";");
 
-            migrationBuilder.RenameColumn(
-                name: "AvatarUrl",
-                schema: "app",
-                table: "users",
-                newName: "ProfileImageUrl");
+            // Akıllı Rename: Sadece AvatarUrl varsa değiştir
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                  IF EXISTS(SELECT *
+                    FROM information_schema.columns
+                    WHERE table_schema = 'app' AND table_name = 'users' AND column_name = 'AvatarUrl')
+                  THEN
+                      ALTER TABLE app.users RENAME COLUMN ""AvatarUrl"" TO ""ProfileImageUrl"";
+                  END IF;
+                END $$;
+            ");
 
-            migrationBuilder.RenameColumn(
-                name: "ProjectId",
-                schema: "app",
-                table: "report_requests",
-                newName: "CreatedBy");
+            // Akıllı Rename: ProjectId -> CreatedBy
+            migrationBuilder.Sql(@"
+                DO $$
+                BEGIN
+                  IF EXISTS(SELECT *
+                    FROM information_schema.columns
+                    WHERE table_schema = 'app' AND table_name = 'report_requests' AND column_name = 'ProjectId')
+                  THEN
+                      ALTER TABLE app.report_requests RENAME COLUMN ""ProjectId"" TO ""CreatedBy"";
+                  END IF;
+                END $$;
+            ");
 
             migrationBuilder.RenameIndex(
                 name: "IX_report_requests_ProjectId",
