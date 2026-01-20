@@ -275,20 +275,39 @@ public class ProjectService : IProjectService
 
         if (user.Status != UserStatus.Active) throw new BadRequestException("Aktif olmayan kullanıcı projeye eklenemez");
 
-        var existingMember = await _context.ProjectMembers
-            .FirstOrDefaultAsync(pm => pm.ProjectId == projectId && pm.UserId == dto.UserId && !pm.IsDeleted);
+        // ÖNEMLİ: Silinmiş veya silinmemiş fark etmeksizin kaydı kontrol et
+        var member = await _context.ProjectMembers
+            .FirstOrDefaultAsync(pm => pm.ProjectId == projectId && pm.UserId == dto.UserId);
 
-        if (existingMember != null) throw new ConflictException("Kullanıcı zaten bu projede mevcut");
-
-        var member = new ProjectMember
+        if (member != null)
         {
-            ProjectId = projectId,
-            UserId = dto.UserId,
-            Role = dto.Role,
-            AddedAt = now
-        };
+            if (!member.IsDeleted)
+            {
+                throw new ConflictException("Kullanıcı zaten bu projede aktif bir üye.");
+            }
 
-        _context.ProjectMembers.Add(member);
+            // Silinmiş kaydı canlandır (Reactivate)
+            member.IsDeleted = false;
+            member.DeletedAt = null;
+            member.DeletedBy = null;
+            member.Role = dto.Role;
+            member.AddedAt = now;
+            
+            _logger.LogInformation($"Soft-deleted member {dto.UserId} reactivated in project {projectId}");
+        }
+        else
+        {
+            // Kayıt hiç yoksa yeni oluştur
+            member = new ProjectMember
+            {
+                ProjectId = projectId,
+                UserId = dto.UserId,
+                Role = dto.Role,
+                AddedAt = now
+            };
+            _context.ProjectMembers.Add(member);
+        }
+
         await _context.SaveChangesAsync();
 
         return new ProjectMemberDto
@@ -327,10 +346,24 @@ public class ProjectService : IProjectService
             throw new InvalidOperationException("Captain rolündeki kişi projeden çıkarılamaz. Önce ownership transfer yapın.");
         }
 
-        var hasAssignedTasks = await _context.Tasks
-            .AnyAsync(t => t.ProjectId == projectId && t.AssigneeId == userId && !t.IsDeleted);
+        // Sadece AKTİF (tamamlanmamış veya iptal edilmemiş) taskları kontrol et
+        var hasActiveTasks = await _context.Tasks
+            .AnyAsync(t => t.ProjectId == projectId 
+                        && t.AssigneeId == userId 
+                        && !t.IsDeleted
+                        && t.Status != TaskStatus.Todo // Bu satırı siliyorum çünkü Todo aktiftir.
+                        && t.Status != TaskStatus.Done 
+                        && t.Status != TaskStatus.Cancelled);
 
-        if (hasAssignedTasks) throw new BadRequestException("Üyenin atanmış taskları var.");
+        // Doğru mantık: Status Done veya Cancelled DEĞİLSE aktiftir.
+        var hasActiveTasksFixed = await _context.Tasks
+            .AnyAsync(t => t.ProjectId == projectId 
+                        && t.AssigneeId == userId 
+                        && !t.IsDeleted
+                        && t.Status != TaskStatus.Done 
+                        && t.Status != TaskStatus.Cancelled);
+
+        if (hasActiveTasksFixed) throw new BadRequestException("Üyenin atanmış aktif görevleri var. Önce bu görevleri tamamlayın, iptal edin veya başkasına atayın.");
 
         member.IsDeleted = true;
         member.DeletedAt = now;
