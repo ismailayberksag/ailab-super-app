@@ -81,27 +81,10 @@ namespace ailab_super_app.Migrations
                 oldClrType: typeof(int),
                 oldType: "integer");
 
-            migrationBuilder.AddColumn<DateTime>(
-                name: "ScoreAssignedAt",
-                schema: "app",
-                table: "tasks",
-                type: "timestamp with time zone",
-                nullable: true);
-
-            migrationBuilder.AddColumn<int>(
-                name: "ScoreCategory",
-                schema: "app",
-                table: "tasks",
-                type: "integer",
-                nullable: true);
-
-            migrationBuilder.AddColumn<bool>(
-                name: "ScoreProcessed",
-                schema: "app",
-                table: "tasks",
-                type: "boolean",
-                nullable: false,
-                defaultValue: false);
+            // Güvenli AddColumn: IF NOT EXISTS
+            migrationBuilder.Sql("ALTER TABLE app.tasks ADD COLUMN IF NOT EXISTS \"ScoreAssignedAt\" timestamp with time zone;");
+            migrationBuilder.Sql("ALTER TABLE app.tasks ADD COLUMN IF NOT EXISTS \"ScoreCategory\" integer;");
+            migrationBuilder.Sql("ALTER TABLE app.tasks ADD COLUMN IF NOT EXISTS \"ScoreProcessed\" boolean NOT NULL DEFAULT false;");
 
             migrationBuilder.AlterColumn<decimal>(
                 name: "PointsChanged",
