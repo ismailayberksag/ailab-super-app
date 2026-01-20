@@ -64,10 +64,10 @@ public class ProfileController : ControllerBase
     }
 
     /// <summary>
-    /// Update current user's profile info (Phone, etc.)
+    /// Update current user's phone number
     /// </summary>
-    [HttpPut]
-    public async Task<ActionResult<UserDto>> UpdateMyProfile([FromBody] UpdateUserDto dto)
+    [HttpPut("update-phone")]
+    public async Task<ActionResult<UserDto>> UpdatePhone([FromBody] UpdateUserDto dto)
     {
         try
         {
@@ -77,7 +77,26 @@ public class ProfileController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError($"Update profile error: {ex.Message}");
+            _logger.LogError($"Update phone error: {ex.Message}");
+            return BadRequest(new { message = ex.Message });
+        }
+    }
+
+    /// <summary>
+    /// Update current user's email (Sync with Firebase)
+    /// </summary>
+    [HttpPut("update-email")]
+    public async Task<ActionResult<UserDto>> UpdateEmail([FromBody] UpdateEmailDto dto)
+    {
+        try
+        {
+            var userId = GetCurrentUserId();
+            var user = await _userService.UpdateUserEmailAsync(userId, dto.NewEmail);
+            return Ok(user);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError($"Update email error: {ex.Message}");
             return BadRequest(new { message = ex.Message });
         }
     }

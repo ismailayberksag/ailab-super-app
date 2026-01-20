@@ -124,6 +124,34 @@ namespace ailab_super_app.Services
             return await GetUserByIdAsync(userId);
         }
 
+        public async Task<UserDto> UpdateUserEmailAsync(Guid userId, string newEmail)
+        {
+            var now = DateTimeHelper.GetTurkeyTime();
+            var user = await _userManager.FindByIdAsync(userId.ToString());
+
+            if (user == null || user.IsDeleted)
+            {
+                throw new Exception("Kullanıcı bulunamadı");
+            }
+
+            // Email ve UserName senkronizasyonu
+            user.Email = newEmail;
+            user.UserName = newEmail; // Bizim sistemde UserName email ile aynı tutuluyor genelde
+            user.NormalizedEmail = newEmail.ToUpperInvariant();
+            user.NormalizedUserName = newEmail.ToUpperInvariant();
+            user.UpdatedAt = now;
+
+            var result = await _userManager.UpdateAsync(user);
+
+            if (!result.Succeeded)
+            {
+                var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+                throw new Exception($"E-posta güncellenemedi: {errors}");
+            }
+
+            return await GetUserByIdAsync(userId);
+        }
+
         public async Task<UserDto> UpdateUserStatusAsync(Guid userId, UpdateUserStatusDto dto)
         {
             var now = DateTimeHelper.GetTurkeyTime();
