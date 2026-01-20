@@ -73,8 +73,8 @@ namespace ailab_super_app
                     {
                         var token = authHeader.Substring("Bearer ".Length).Trim();
                         // Firebase token'lar genelde çok uzundur. Legacy JWT'ler claimlere göre 500'ü geçebilir.
-                        // Sınırı 1000'e çıkarıyoruz.
-                        return token.Length > 1000 ? "Firebase" : "Legacy";
+                        // Sınırı 800'e indiriyoruz (Firebase ID token'lar genelde 900+ karakterdir).
+                        return token.Length > 800 ? "Firebase" : "Legacy";
                     }
                     return "Legacy";
                 };
