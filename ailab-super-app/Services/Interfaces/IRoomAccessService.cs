@@ -1,5 +1,6 @@
 using ailab_super_app.DTOs.Rfid;
 using ailab_super_app.DTOs.Statistics;
+using ailab_super_app.Models.Enums;
 using ailab_super_app.Models;
 
 namespace ailab_super_app.Services.Interfaces;
@@ -37,4 +38,8 @@ public interface IRoomAccessService
     
     // Admin Operations
     Task<int> ForceCheckoutAsync(ForceCheckoutDto dto, Guid adminId);
+    
+    // Access Mode Management
+    Task UpdateRoomAccessModeAsync(Guid roomId, RoomAccessMode mode);
+    Task<RoomAccessMode> GetRoomAccessModeAsync(Guid roomId);
 }

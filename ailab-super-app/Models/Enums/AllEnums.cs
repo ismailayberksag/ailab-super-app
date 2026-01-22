@@ -78,3 +78,9 @@ public enum AuthProvider
     Legacy = 0,      // Mevcut ASP.NET Identity sistemi
     Firebase = 1     // Firebase Authentication
 }
+
+public enum RoomAccessMode
+{
+    All = 0,       // Herkese açık
+    AdminOnly = 1  // Sadece Admin rolüne sahip kullanıcılar
+}

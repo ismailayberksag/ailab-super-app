@@ -1,3 +1,4 @@
+using ailab_super_app.Common.Exceptions;
 using ailab_super_app.Data;
 using ailab_super_app.DTOs.Rfid;
 using ailab_super_app.DTOs.Statistics;
@@ -41,6 +42,7 @@ public class RoomAccessService : IRoomAccessService
 
             // 1. Reader Validation
             var reader = await _context.RfidReaders
+                .Include(r => r.Room)
                 .FirstOrDefaultAsync(r => r.ReaderUid == request.ReaderUid && r.IsActive);
 
             if (reader == null)
@@ -56,6 +58,25 @@ public class RoomAccessService : IRoomAccessService
             if (rfidCard == null || rfidCard.UserId == null)
             {
                 return new CardScanResponseDto { Success = false, Message = "Geçersiz RFID kart", DoorShouldOpen = false };
+            }
+
+            // Access Mode Check
+            if (reader.Room != null && reader.Room.AccessMode == RoomAccessMode.AdminOnly)
+            {
+                if (rfidCard.User != null)
+                {
+                    var isAdmin = await _userManager.IsInRoleAsync(rfidCard.User, "Admin");
+                    if (!isAdmin)
+                    {
+                        return new CardScanResponseDto 
+                        { 
+                            Success = false, 
+                            Message = "Erişim kısıtlı (Sadece Admin)", 
+                            DoorShouldOpen = false,
+                            UserName = rfidCard.User.FullName ?? rfidCard.User.UserName ?? "Bilinmeyen"
+                        };
+                    }
+                }
             }
 
             var userId = rfidCard.UserId.Value;
@@ -419,5 +440,23 @@ public class RoomAccessService : IRoomAccessService
 
         await _context.SaveChangesAsync();
         return count; // Çıkarılan kişi sayısını dön
+    }
+
+    public async Task UpdateRoomAccessModeAsync(Guid roomId, RoomAccessMode mode)
+    {
+        var room = await _context.Rooms.FindAsync(roomId);
+        if (room == null) throw new NotFoundException("Oda bulunamadı");
+        
+        room.AccessMode = mode;
+        room.UpdatedAt = DateTimeHelper.GetTurkeyTime();
+        await _context.SaveChangesAsync();
+    }
+
+    public async Task<RoomAccessMode> GetRoomAccessModeAsync(Guid roomId)
+    {
+        var room = await _context.Rooms.FindAsync(roomId);
+        if (room == null) throw new NotFoundException("Oda bulunamadı");
+        
+        return room.AccessMode;
     }
 }

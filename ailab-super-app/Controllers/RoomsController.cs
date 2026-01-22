@@ -1,5 +1,7 @@
 using ailab_super_app.DTOs.Rfid;
+using ailab_super_app.DTOs.Room;
 using ailab_super_app.DTOs.Statistics;
+using ailab_super_app.Models.Enums;
 using ailab_super_app.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -220,6 +222,43 @@ namespace ailab_super_app.Controllers
                 catch (Exception ex)
                 {
                     _logger.LogError($"Force checkout error: {ex.Message}");
+                    return BadRequest(new { message = ex.Message });
+                }
+            }
+
+            /// <summary>
+            /// Update room access mode (Admin only)
+            /// </summary>
+            [HttpPut("{roomId}/access-mode")]
+            [Authorize(Roles = "Admin")]
+            public async Task<IActionResult> UpdateAccessMode(Guid roomId, [FromBody] UpdateRoomAccessModeDto dto)
+            {
+                try
+                {
+                    await _roomAccessService.UpdateRoomAccessModeAsync(roomId, dto.Mode);
+                    return Ok(new { message = "Erişim modu güncellendi", mode = dto.Mode });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Update access mode error: {ex.Message}");
+                    return BadRequest(new { message = ex.Message });
+                }
+            }
+
+            /// <summary>
+            /// Get room access mode
+            /// </summary>
+            [HttpGet("{roomId}/access-mode")]
+            public async Task<ActionResult<RoomAccessMode>> GetAccessMode(Guid roomId)
+            {
+                try
+                {
+                    var mode = await _roomAccessService.GetRoomAccessModeAsync(roomId);
+                    return Ok(new { mode });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Get access mode error: {ex.Message}");
                     return BadRequest(new { message = ex.Message });
                 }
             }
