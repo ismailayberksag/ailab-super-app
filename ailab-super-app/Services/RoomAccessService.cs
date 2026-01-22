@@ -374,4 +374,50 @@ public class RoomAccessService : IRoomAccessService
             TotalTeammatesCount = allTeammateUserIds.Count
         };
     }
+
+    public async Task<int> ForceCheckoutAsync(ForceCheckoutDto dto, Guid adminId)
+    {
+        var now = DateTimeHelper.GetTurkeyTime();
+        var query = _context.LabCurrentOccupancy.AsQueryable();
+
+        // Filtreleme
+        if (dto.UserId.HasValue)
+        {
+            query = query.Where(x => x.UserId == dto.UserId.Value);
+        }
+
+        if (dto.RoomId.HasValue)
+        {
+            query = query.Where(x => x.RoomId == dto.RoomId.Value);
+        }
+
+        var occupants = await query.ToListAsync();
+        int count = 0;
+
+        foreach (var occupant in occupants)
+        {
+            // 1. LabEntries'deki açık kaydı bul ve kapat
+            // Son girdiği kaydı buluyoruz (henüz çıkış yapılmamış olan)
+            var lastEntry = await _context.LabEntries
+                .Where(e => e.UserId == occupant.UserId && e.ExitTime == null)
+                .OrderByDescending(e => e.EntryTime)
+                .FirstOrDefaultAsync();
+
+            if (lastEntry != null)
+            {
+                lastEntry.ExitTime = now;
+                lastEntry.Notes = "Admin tarafından çıkarıldı (Force Checkout)";
+                
+                // Süre hesapla (Opsiyonel ama iyi olur)
+                lastEntry.DurationMinutes = (int)(now - lastEntry.EntryTime).TotalMinutes;
+            }
+
+            // 2. Anlık doluluktan sil
+            _context.LabCurrentOccupancy.Remove(occupant);
+            count++;
+        }
+
+        await _context.SaveChangesAsync();
+        return count; // Çıkarılan kişi sayısını dön
+    }
 }

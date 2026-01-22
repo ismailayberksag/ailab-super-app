@@ -31,18 +31,10 @@ public interface IRoomAccessService
     /// </summary>
     Task<ButtonPressResponseDto> ProcessButtonPressAsync(ButtonPressRequestDto request);
 
-    /// <summary>
-    /// Get global lab occupancy and capacity statistics.
-    /// </summary>
     Task<GlobalLabStatusDto> GetGlobalLabStatusAsync();
-
-    /// <summary>
-    /// Get lab usage statistics for a specific user.
-    /// </summary>
     Task<UserLabStatsDto> GetUserLabStatsAsync(Guid userId);
-
-    /// <summary>
-    /// Get statistics about teammates inside the lab for a specific user.
-    /// </summary>
     Task<TeammateLabStatusDto> GetTeammateLabStatusAsync(Guid userId);
+    
+    // Admin Operations
+    Task<int> ForceCheckoutAsync(ForceCheckoutDto dto, Guid adminId);
 }

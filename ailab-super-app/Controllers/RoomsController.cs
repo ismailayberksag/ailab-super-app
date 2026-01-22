@@ -194,14 +194,33 @@ namespace ailab_super_app.Controllers
                     return BadRequest(new { message = ex.Message });
                 }
             }
-        private Guid GetCurrentUserId()
-        {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-            if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+            private Guid GetCurrentUserId()
             {
-                throw new UnauthorizedAccessException("Kullanıcı kimliği doğrulanamadı.");
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userIdClaim) || !Guid.TryParse(userIdClaim, out var userId))
+                {
+                    throw new UnauthorizedAccessException("Kullanıcı kimliği doğrulanamadı.");
+                }
+                return userId;
             }
-            return userId;
-        }
-    }
-}
+        
+            /// <summary>
+            /// Force checkout user(s) from lab (Admin only)
+            /// </summary>
+            [HttpPost("force-checkout")]
+            [Authorize(Roles = "Admin")]
+            public async Task<IActionResult> ForceCheckout([FromBody] ForceCheckoutDto dto)
+            {
+                try
+                {
+                    var adminId = GetCurrentUserId();
+                    var count = await _roomAccessService.ForceCheckoutAsync(dto, adminId);
+                    return Ok(new { message = $"{count} kişi başarıyla çıkarıldı." });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"Force checkout error: {ex.Message}");
+                    return BadRequest(new { message = ex.Message });
+                }
+            }
+        }}
